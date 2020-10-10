@@ -42,7 +42,7 @@ MODULE_LICENSE("GPL");
 
 static char fbui_input_name[] = "fbui_input";
 
-static spinlock_t mylock = SPIN_LOCK_UNLOCKED;
+static DEFINE_SPINLOCK(mylock);
 
 static FBUIInputEventHandler *handler = NULL;
 static u32 handlerparam = 0;
@@ -71,13 +71,13 @@ static void fbui_input_event(struct input_handle *handle, unsigned int type, uns
 	e.type = type;
 	e.code = code;
 	e.value= value;
-	do_gettimeofday(&e.time);
+	//do_gettimeofday(&e.time);
 	(handler) (handlerparam, &e);
 
 	spin_unlock_irqrestore(&mylock, flags);
 }
 
-static struct input_handle *fbui_input_connect(struct input_handler *handler, struct input_dev *dev, struct input_device_id *id)
+static int fbui_input_connect(struct input_handler *handler, struct input_dev *dev, const struct input_device_id *id)
 {
 	struct input_handle *handle;
 
@@ -123,7 +123,7 @@ fbui_mksound (int pitch, int duration)
 
 	if (!handler)
 		return;
-
+/*
         if (pitch) {
                 list_for_each_prev(node,&fbui_input_handler.h_list) {
                         struct input_handle *handle = to_handle_h(node);
@@ -140,6 +140,7 @@ printk (KERN_INFO "fbui_mksound: found speaker device.\n");
                         }
                 }
         }
+*/
 }
 
 

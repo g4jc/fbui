@@ -1,4 +1,6 @@
 #/bin/sh
+# You have to export your PCF fonts directory or extract from LiveCD
+# export PCFFONTDIR=/user-disk/tree/usr/FBUI/fonts/75dpi
 
 if [ "$1" == "" ]; then
 	export A=4
@@ -16,7 +18,7 @@ Calc/fbcalc -geo150x150+220+50 -c$A &
 
 sleep 2
 # sleep needed because fbwm doesn't handle requests for autoplacement
-WindowManager/fbwm -c$A 
+WindowManager/fbwm -c$A
 
 #sleep 60
 #Dump/fbdump

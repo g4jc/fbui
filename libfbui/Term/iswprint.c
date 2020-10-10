@@ -1,6 +1,6 @@
 
 #include "fbterm.h"
-
+/*
 #ifndef HAVE_ISWPRINT
 
 int iswprint (wint_t wc)
@@ -12,3 +12,4 @@ int iswprint (wint_t wc)
 }
 
 #endif /* HAVE_ISWPRINT */
+

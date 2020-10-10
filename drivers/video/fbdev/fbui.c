@@ -204,13 +204,14 @@
  *============================================================================
  */
 
-#include <linux/config.h>
+#include <generated/autoconf.h>
 #include <linux/module.h>
 #include <linux/string.h>
 #include <linux/fb.h>
 #include <asm/types.h>
 #include <asm/uaccess.h>
 #include <linux/spinlock.h>
+#include <linux/sched.h>
 #include <linux/tty.h>
 #include <linux/console.h>
 #include <linux/kbd_kern.h>
@@ -325,15 +326,17 @@ void myalloc_dump (void)
 }
 #endif
 
-
+/* tasklist is no more as of c59923a15c12d2b3597af913bf234a0ef264a38b
 static int process_exists (int pid)
 {
 	struct pid *pidptr;
 	read_lock_irq(&tasklist_lock);
-	pidptr = find_pid (PIDTYPE_PID, pid);
+	//pidptr = find_pid (PIDTYPE_PID, pid);
+	pidptr = pid_task(pid, PIDTYPE_PID);
 	read_unlock_irq(&tasklist_lock);
 	return pidptr != NULL;
 }
+*/
 
 
 void rects_compress (struct fbui_rects *r)
@@ -375,7 +378,7 @@ void rects_compress (struct fbui_rects *r)
 static void fbui_enqueue_event (struct fb_info *info, struct fbui_win *win, 
                            	struct fbui_event *ev, int inside_IH)
 {
-	spinlock_t mylock = SPIN_LOCK_UNLOCKED;
+	DEFINE_SPINLOCK(mylock);
 	struct fbui_processentry *pre;
 	unsigned long flags = 0;
 	short head;
@@ -806,7 +809,7 @@ static short fbui_winsort (struct fb_info *info, int cons, short *result,
 			struct fbui_win *lower_me);
 
 /* Parameter cons is the VC we are switching to;
- * info->currcon is the VC we are switching from.
+ * fg_console is the VC we are switching from.
  */
 int fbui_switch (struct fb_info *info, int cons)
 {
@@ -836,17 +839,17 @@ int fbui_switch (struct fb_info *info, int cons)
 	 */
 	sem = &info->winptrSem;
 	down_write (sem);
-	leave_win = info->pointer_window [info->currcon];
-	info->pointer_window [info->currcon] = NULL;
+	leave_win = info->pointer_window [fg_console];
+	info->pointer_window [fg_console] = NULL;
 	up_write (sem);
 
 	/* Set the new console# */
-	info->currcon = cons;
+	fg_console = cons;
 
 	/* This routine is called whenever there's a switch,
 	 * not just when we're switching to a graphics console.
 	 */
-	if (vt_cons[cons]->vc_mode != KD_GRAPHICS)
+	if (vc_cons[fg_console].d->vc_mode != KD_GRAPHICS)
 		return 1;
 
 	/* Former pointer window no longer valid */
@@ -950,7 +953,7 @@ static int pointer_in_window (struct fb_info *info, struct fbui_win *win,
 		return 0;
 	/*----------*/
 
-	if (win->console != info->currcon)
+	if (win->console != fg_console)
 		return 0;
 	if (win->is_hidden)
 		return 0;
@@ -1092,7 +1095,7 @@ static void fbui_pointer_draw (struct fb_info *info)
 
 static void fbui_enable_pointer (struct fb_info *info)
 {
-	spinlock_t lock = SPIN_LOCK_UNLOCKED;
+	DEFINE_SPINLOCK(lock);
 	unsigned long flags;
 
 	if (!info) 
@@ -1129,7 +1132,7 @@ static void fbui_disable_pointer (struct fb_info *info)
 
 static void fbui_hide_pointer (struct fb_info *info)
 {
-	spinlock_t lock = SPIN_LOCK_UNLOCKED;
+	DEFINE_SPINLOCK(lock);
 	unsigned long flags;
 
 	if (!info) 
@@ -1140,7 +1143,7 @@ static void fbui_hide_pointer (struct fb_info *info)
 		return;
 	/*----------*/
 
-	down (&info->pointerSems[info->currcon]);
+	down (&info->pointerSems[fg_console]);
 	spin_lock_irqsave (&lock, flags); 
 
 	if (!info->have_hardware_pointer)
@@ -1152,13 +1155,13 @@ static void fbui_hide_pointer (struct fb_info *info)
 	info->pointer_hidden = 1;
 
 	spin_unlock_irqrestore(&lock, flags); 
-	up (&info->pointerSems[info->currcon]);
+	up (&info->pointerSems[fg_console]);
 }
 
 
 static void fbui_unhide_pointer (struct fb_info *info)
 {
-	spinlock_t lock = SPIN_LOCK_UNLOCKED;
+	DEFINE_SPINLOCK(lock);
 	unsigned long flags;
 
 	if (!info) 
@@ -1169,7 +1172,7 @@ static void fbui_unhide_pointer (struct fb_info *info)
 		return;
 	/*----------*/
 
-	down (&info->pointerSems[info->currcon]);
+	down (&info->pointerSems[fg_console]);
 	spin_lock_irqsave(&lock, flags); 
 
 	if (!info->have_hardware_pointer) {
@@ -1181,14 +1184,14 @@ static void fbui_unhide_pointer (struct fb_info *info)
 	info->pointer_hidden = 0;
 
 	spin_unlock_irqrestore(&lock, flags); 
-	up (&info->pointerSems[info->currcon]);
+	up (&info->pointerSems[fg_console]);
 }
 
 
 static char pointer_hide_if_touching (struct fb_info *info,
 	short x0, short y0, short x1, short y1)
 {
-	spinlock_t lock = SPIN_LOCK_UNLOCKED;
+	DEFINE_SPINLOCK(lock);
 	unsigned long flags;
 	short mx = info->mouse_x0;
 	short my = info->mouse_y0;
@@ -1210,7 +1213,7 @@ static char pointer_hide_if_touching (struct fb_info *info,
 	}
 	/*----------*/
 
-	down (&info->pointerSems[info->currcon]);
+	down (&info->pointerSems[fg_console]);
 	spin_lock_irqsave (&lock, flags); 
 
 	if (mx > x1 || mx1 < x0)
@@ -1228,14 +1231,14 @@ static char pointer_hide_if_touching (struct fb_info *info,
 	}
 
 	spin_unlock_irqrestore(&lock, flags); 
-	up (&info->pointerSems[info->currcon]);
+	up (&info->pointerSems[fg_console]);
 	return touching;
 }
 
 static char pointer_hide_if_rects (struct fb_info *info,
 	struct fbui_win *win)
 {
-	spinlock_t lock = SPIN_LOCK_UNLOCKED;
+	DEFINE_SPINLOCK(lock);
 	unsigned long flags;
 	short mx = info->mouse_x0;
 	short my = info->mouse_y0;
@@ -1249,7 +1252,7 @@ static char pointer_hide_if_rects (struct fb_info *info,
 		return 0;
 	/*----------*/
 
-	down (&info->pointerSems[info->currcon]);
+	down (&info->pointerSems[fg_console]);
 	spin_lock_irqsave (&lock, flags); 
 
 	touching = 0;
@@ -1297,7 +1300,7 @@ static char pointer_hide_if_rects (struct fb_info *info,
 	}
 
 	spin_unlock_irqrestore(&lock, flags); 
-	up (&info->pointerSems[info->currcon]);
+	up (&info->pointerSems[fg_console]);
 	return touching;
 }
 
@@ -1311,7 +1314,7 @@ static struct fbui_win *get_window_at_xy (struct fb_info *info, short x, short y
 		return NULL;
 	/*----------*/
 
-	cons = info->currcon;
+	cons = fg_console;
 	i = cons * FBUI_MAXWINDOWSPERVC;
 	lim = i + FBUI_MAXWINDOWSPERVC;
 	while (i < lim) {
@@ -1355,6 +1358,7 @@ static struct fbui_win *fbui_lookup_wm (struct fb_info *info, int cons)
 	/* Since the wm is a critical window, let's
 	 * just make sure that its process still exists.
 	 */
+	 /*
 	if (p) {
 		if (!process_exists (p->pid)) {
 			fbui_destroy_win (info, p->id, 0);
@@ -1363,6 +1367,7 @@ static struct fbui_win *fbui_lookup_wm (struct fb_info *info, int cons)
 			up_write (sem);
 		}
 	}
+	*/
 
 	return p;
 }
@@ -1384,7 +1389,7 @@ void input_handler (u32 param, struct input_event *ev)
 	if (!info || !ev)
 		return;
 
-	cons = info->currcon;
+	cons = fg_console;
 	if (cons < 0 || cons >= FBUI_MAXCONSOLES)
 		return;
 	/*----------*/
@@ -1398,7 +1403,7 @@ void input_handler (u32 param, struct input_event *ev)
 		event_is_altkey=1;
 	}
 
-	if (vt_cons[cons]->vc_mode != KD_GRAPHICS)
+	if (vc_cons[fg_console].d->vc_mode != KD_GRAPHICS)
 		return;
 
 	switch (type) {
@@ -1458,7 +1463,7 @@ void input_handler (u32 param, struct input_event *ev)
 				case KEY_BACKSPACE: ia = '\b'; break;
 				}
 
-				match = accelerator_test (info, info->currcon,
+				match = accelerator_test (info, fg_console,
 					ia);
 				if (match) {
 					struct fbui_event ev;
@@ -1587,7 +1592,7 @@ void input_handler (u32 param, struct input_event *ev)
 		}
 
 		if (got_rel_x && got_rel_y) {
-			int cons = info->currcon;
+			int cons = fg_console;
 
 			if (!info->pointer_active || info->pointer_hidden)
 				return;
@@ -1818,10 +1823,10 @@ int fbui_init (struct fb_info *info)
 
 	for (i=0; i < (FBUI_MAXCONSOLES * FBUI_MAXWINDOWSPERVC); i++) {
 		info->windows [i] = NULL;
-		init_MUTEX (&info->windowSems [i]);
+		sema_init (&info->windowSems [i],1);
 	}
 
-	init_MUTEX (&info->preSem);
+	sema_init (&info->preSem,1);
 
 	for (i=0; i<FBUI_MAXCONSOLES; i++) {
 		info->force_placement [i] = 0;
@@ -1831,7 +1836,7 @@ int fbui_init (struct fb_info *info)
 		info->pointerfocus_window [i] = NULL;
 		info->window_managers [i] = NULL;
 		info->bg_rects [i] = NULL;
-		init_MUTEX (&info->pointerSems[i]);
+		sema_init (&info->pointerSems[i],1);
 	}
 
 	init_rwsem (&info->winptrSem);
@@ -2914,7 +2919,7 @@ printk(KERN_INFO "Entered fbui_redo_overlap: cons=%d, window=%d, function=%s\n",
 	/* If we are doing an unhide, clear its background.
 	 */
 	if (raise || unhide) {
-		if (cons == info->currcon) {
+		if (cons == fg_console) {
 			rects_fill (info, w->rects, w->bgcolor);
 		}
 	}
@@ -2967,7 +2972,7 @@ printk(KERN_INFO "Entered fbui_redo_overlap: cons=%d, window=%d, function=%s\n",
 
 			if (p->to_expose) {
 				struct fbui_event ev;
-				if (cons == info->currcon)
+				if (cons == fg_console)
 					rects_fill (info, p->to_expose,
 							 p->bgcolor);
 
@@ -2980,7 +2985,7 @@ printk(KERN_INFO "Entered fbui_redo_overlap: cons=%d, window=%d, function=%s\n",
 			}
 		}
 
-		if (!lower && cons == info->currcon) {
+		if (!lower && cons == fg_console) {
 			struct fbui_rects *rect;
 			rect = rects_new (58,w->id);
 			rects_add (rect, w->x0, w->y0, w->x1, w->y1, 58);
@@ -3033,7 +3038,7 @@ static int fbui_overlap_window (struct fb_info *info, struct fbui_win *win)
 
 	cons = win->console;
 
-	if (win->console == info->currcon)
+	if (win->console == fg_console)
 		hid = pointer_hide_if_rects (info, win);
 
 	sem = &info->winptrSem;
@@ -3069,7 +3074,7 @@ static int fbui_remove_window (struct fb_info *info, struct fbui_win *win)
 
 	cons = win->console;
 
-	if (cons == info->currcon)
+	if (cons == fg_console)
 		hid = pointer_hide_if_rects (info, win);
 
 	sem = &info->winptrSem;
@@ -3190,7 +3195,7 @@ static int fbui_moveresize_window (struct fb_info *info,
 
 	cons = win->console;
 
-	if (cons == info->currcon && !info->have_hardware_pointer && 
+	if (cons == fg_console && !info->have_hardware_pointer && 
 	    info->pointer_active && !info->pointer_hidden) 
 	{
 		hid_mouseptr = pointer_hide_if_rects (info, win);
@@ -3204,7 +3209,7 @@ static int fbui_moveresize_window (struct fb_info *info,
 	sem = &info->winptrSem;
 	down_write (sem);
 
-	if (cons == info->currcon) {
+	if (cons == fg_console) {
 		struct fbui_rects *tmp;
 		struct fbui_rects *shifted = NULL;
 
@@ -3306,7 +3311,7 @@ static int fbui_moveresize_window (struct fb_info *info,
 		return i;
 	}
 
-	if (cons == info->currcon) {
+	if (cons == fg_console) {
 		struct fbui_rects *to_clear;
 
 		/* Clear the parts of underlying windows that become
@@ -3366,7 +3371,7 @@ static int fbui_moveresize_window (struct fb_info *info,
 					   50);
 		if (to_clear && to_clear->total)
 		{
-			if (cons == info->currcon)
+			if (cons == fg_console)
 				background_fill (info, to_clear, 
 					info->bgcolor[cons]);
 
@@ -3472,16 +3477,16 @@ static void restore_vc (struct fb_info *info, int cons)
 		info->bg_rects[cons] = NULL;
 	}
 
-	if (cons != info->currcon) {
-		vc_cons[cons].d->vc_tty = info->ttysave[cons];
-		vt_cons[cons]->vc_mode = KD_TEXT;
+	if (cons != fg_console) {
+		vc_cons[cons].d->port.tty = info->ttysave[cons];
+		vc_cons[fg_console].d->vc_mode = KD_TEXT;
 	} else {
-		acquire_console_sem();
-		vc_cons[cons].d->vc_tty = info->ttysave[cons];
-		vt_cons[cons]->vc_mode = KD_TEXT;
+		console_lock();
+		vc_cons[cons].d->port.tty = info->ttysave[cons];
+		vc_cons[fg_console].d->vc_mode = KD_TEXT;
 		do_unblank_screen(1);
 		redraw_screen (cons,0);
-		release_console_sem();
+		console_unlock();
 	}
 
 	printk(KERN_INFO "FBUI: restored console %d to text.\n", cons);
@@ -3778,14 +3783,14 @@ backup_vc (struct fb_info *info, int cons)
 		return;
 	/*----------*/
 
-	acquire_console_sem();
-	vt_cons[cons]->vc_mode = KD_GRAPHICS;
-	tty = vc_cons[cons].d->vc_tty;
+	console_lock();
+	vc_cons[fg_console].d->vc_mode = KD_GRAPHICS;
+	tty = vc_cons[cons].d->port.tty;
 	info->ttysave[cons] = tty;
-	vc_cons[cons].d->vc_tty = NULL;
-	info->cursor.enable = 0;
+	vc_cons[cons].d->port.tty = NULL;
+	//info->cursor.enable = 0;
 	do_blank_screen(1);
-	release_console_sem();
+	console_unlock();
 
 	if ((r = info->bg_rects[cons]))
 		rects_delete (r);
@@ -3794,7 +3799,7 @@ backup_vc (struct fb_info *info, int cons)
 	rects_add (info->bg_rects[cons], 0,0, 
 		info->var.xres-1, info->var.yres-1, 61);
 
-	if (cons == info->currcon) {
+	if (cons == fg_console) {
 		local_clear (info, info->bgcolor[cons]);
 		info->pointer_active = 0;
 		fbui_enable_pointer(info);
@@ -3903,7 +3908,7 @@ int fbui_open (struct fb_info *info, struct fbui_open *p)
 		return FBUI_ERR_BADVC;
 	}
 	if (cons < 0) {
-		cons = info->currcon;
+		cons = fg_console;
 		if (cons < 0) {
 			printk (KERN_INFO "currcon is negative\n");
 		}
@@ -3918,7 +3923,7 @@ printk(KERN_INFO "VC %d NOT ALLOCated, oddly enough\n", cons);
 #endif
 	}
 
-	if (vt_cons[cons]->vc_mode != KD_GRAPHICS) {
+	if (vc_cons[fg_console].d->vc_mode != KD_GRAPHICS) {
 		backup_vc (info, cons);
 		intercepting_accel = 0;
 	}
@@ -4008,7 +4013,7 @@ printk(KERN_INFO "VC %d NOT ALLOCated, oddly enough\n", cons);
 
 	if (!win->is_wm && !auto_placed && !initially_hidden)
 		fbui_clear (info, win);
-	if (win->is_wm && cons == info->currcon) {
+	if (win->is_wm && cons == fg_console) {
 		fbui_hide_pointer (info);
 		background_fill (info, info->bg_rects[cons], win->bgcolor);
 		fbui_unhide_pointer (info);
@@ -4113,8 +4118,8 @@ static int fbui_clean (struct fb_info *info, int cons)
 		return FBUI_ERR_BADPARAM;
 	}
 	/*----------*/
-
-	/* Process entry check */
+/*
+Process entry check
 	sem = &info->preSem;
 	down(sem);
 	i=0;
@@ -4129,8 +4134,8 @@ static int fbui_clean (struct fb_info *info, int cons)
 		i++;
 	}
 	up(sem);
-
-	/* Window struct check */
+/*
+* Window struct check
 	rwsem = &info->winptrSem;
 	i = cons * FBUI_MAXWINDOWSPERVC;
 	lim = i + FBUI_MAXWINDOWSPERVC;
@@ -4154,7 +4159,7 @@ static int fbui_clean (struct fb_info *info, int cons)
 		}
 		i++;
 	}
-
+*/
 	return FBUI_SUCCESS;
 }
 
@@ -4172,7 +4177,7 @@ int fbui_window_info (struct fb_info *info, int cons,
 		FBUI_ERROR_LOC(51);
 		return FBUI_ERR_NULLPTR;
 	}
-	if (!access_ok (VERIFY_WRITE, (void*)ary, 
+	if (!access_ok ((void*)ary, 
 	    ninfo * sizeof(struct fbui_wininfo))) {
 		FBUI_ERROR_LOC(52);
 		return FBUI_ERR_BADADDR;
@@ -4260,7 +4265,7 @@ int fbui_delete_window (struct fb_info *info, struct fbui_win *self,
 	id = win->id;
 	sem = &info->windowSems [id];
 
-	if (win->console == info->currcon)
+	if (win->console == fg_console)
 		hid = pointer_hide_if_rects (info, win);
 
 	/* XX Need to send event to owner.
@@ -4297,7 +4302,7 @@ int fbui_raise_window (struct fb_info *info, struct fbui_win *win)
 
 	id = win->id;
 
-	if (win->console == info->currcon)
+	if (win->console == fg_console)
 		hid = pointer_hide_if_touching (info, win->x0, win->y0,
 						win->x1, win->y1);
 
@@ -4337,7 +4342,7 @@ int fbui_lower_window (struct fb_info *info, struct fbui_win *win)
 
 	id = win->id;
 
-	if (win->console == info->currcon)
+	if (win->console == fg_console)
 		hid = pointer_hide_if_rects (info, win);
 
 	winsem = &info->windowSems [id];
@@ -4428,7 +4433,7 @@ int fbui_hide_window (struct fb_info *info, struct fbui_win *win)
 	}
 	/*----------*/
 
-	if (win->console == info->currcon)
+	if (win->console == fg_console)
 		hid = pointer_hide_if_rects (info, win);
 
 	down_write (&info->winptrSem);
@@ -4448,7 +4453,7 @@ int fbui_hide_window (struct fb_info *info, struct fbui_win *win)
 	fbui_enqueue_event (info, win, &ev, 0);
 
 	down_read (&info->winptrSem);
-	win2 = info->pointer_window [info->currcon];
+	win2 = info->pointer_window [fg_console];
 	up_read (&info->winptrSem);
 
 	if (hid)
@@ -4484,7 +4489,7 @@ int fbui_unhide_window (struct fb_info *info, struct fbui_win *win)
 	}
 	/*----------*/
 
-	if (win->console == info->currcon)
+	if (win->console == fg_console)
 		hid = pointer_hide_if_rects (info, win);
 
 	/* Rule: Don't allow unhide if the window will overlap.
@@ -4539,6 +4544,7 @@ static struct fbui_processentry *alloc_processentry (struct fb_info *info,
 	int i;
 	struct fbui_processentry *pre;
 	struct semaphore *sem;
+	DEFINE_SPINLOCK(queuelock);
 
 	if (!info)
 		return NULL;
@@ -4557,8 +4563,8 @@ static struct fbui_processentry *alloc_processentry (struct fb_info *info,
 			pre->nwindows = 0;
 			init_waitqueue_head(&pre->waitqueue);
 			pre->window_num = -1;
-			pre->queuelock = SPIN_LOCK_UNLOCKED;
-			init_MUTEX (&pre->queuesem);
+			pre->queuelock = queuelock;
+			sema_init (&pre->queuesem,1);
 			pre->in_use = 1;
 			pre->events = myalloc (9, 63,
 			    sizeof (struct fbui_event) * 
@@ -4620,7 +4626,7 @@ int fbui_set_icon (struct fb_info *info, struct fbui_win *win, u32 *pixels)
 		FBUI_ERROR_LOC(163);
 		return FBUI_ERR_NULLPTR;
 	}
-	if (!access_ok (VERIFY_READ, (void*)pixels, size))
+	if (!access_ok ((void*)pixels, size))
 		return -EFAULT;
 	/*----------*/
 
@@ -4647,7 +4653,7 @@ int fbui_get_icon (struct fb_info *info, struct fbui_win *win, u32 *pixels)
 	}
 	if (!win->icon)
 		return FBUI_ERR_NOICON;
-	if (!access_ok (VERIFY_WRITE, (void*)pixels, size))
+	if (!access_ok ((void*)pixels, size))
 		return -EFAULT;
 	/*----------*/
 
@@ -4713,7 +4719,7 @@ int fbui_control (struct fb_info *info, struct fbui_ctrl *ctl)
 	 * it must pass in a negative window #.
 	 */
 	if (cmd == FBUI_GETCONSOLE && id < 0)
-		return info->currcon;
+		return fg_console;
 
 	if (id < 0) {
 		FBUI_ERROR_LOC(73);
@@ -4914,13 +4920,13 @@ int fbui_control (struct fb_info *info, struct fbui_ctrl *ctl)
 			return FBUI_ERR_NULLPTR;
 		}
 
-		if (!access_ok (VERIFY_WRITE, (void*)event, 
+		if (!access_ok ((void*)event, 
 				sizeof(struct fbui_event))) {
 			FBUI_ERROR_LOC(87);
 			return -EFAULT;
 		}
 		if (ru) {
-			if (!access_ok (VERIFY_WRITE, (void*)ru, 
+			if (!access_ok ((void*)ru, 
 					sizeof(struct fbui_rects))) {
 				FBUI_ERROR_LOC(157);
 				return -EFAULT;
@@ -5038,7 +5044,7 @@ int fbui_control (struct fb_info *info, struct fbui_ctrl *ctl)
 			return FBUI_ERR_BADPARAM;
 		}
 
-		if (!access_ok (VERIFY_READ, pointer, cutlen)) {
+		if (!access_ok (pointer, cutlen)) {
 			FBUI_ERROR_LOC(94);
 			return FBUI_ERR_BADADDR;
 		}
@@ -5090,7 +5096,7 @@ int fbui_control (struct fb_info *info, struct fbui_ctrl *ctl)
 			return FBUI_ERR_BADPARAM;
 		}
 
-		if (!access_ok (VERIFY_WRITE, pointer, cutlen))
+		if (!access_ok (pointer, cutlen))
 			FBUI_ERROR_LOC(98);
 			return FBUI_ERR_BADADDR;
 
@@ -5185,7 +5191,7 @@ int fbui_exec (struct fb_info *info, short win_id, short n, unsigned char *arg)
 		FBUI_ERROR_LOC(106);
                 return FBUI_ERR_BADWIN;
 	}
-	if (win->console != info->currcon || win->is_hidden)
+	if (win->console != fg_console || win->is_hidden)
 		return FBUI_SUCCESS;
 
 	down (&info->windowSems [win->id]);
@@ -5417,7 +5423,7 @@ static int fbui_draw_line (struct fb_info *info, struct fbui_win *win,
 		FBUI_ERROR_LOC(110);
 		return FBUI_ERR_NULLPTR;
 	}
-	if (win->console != info->currcon)
+	if (win->console != fg_console)
 		return FBUI_SUCCESS;
 	if (win->is_hidden)
 		return FBUI_SUCCESS;
@@ -5462,7 +5468,7 @@ static int fbui_draw_line (struct fb_info *info, struct fbui_win *win,
 
 	p->clip_valid = 1;
 
-	r = win->is_wm ? info->bg_rects[info->currcon] : win->rects;
+	r = win->is_wm ? info->bg_rects[fg_console] : win->rects;
 	ix = 0;
 	lim = r->total << 2;
 	while (r && ix < lim) {
@@ -5494,7 +5500,7 @@ static int fbui_fill_triangle (struct fb_info *info, struct fbui_win *win,
 		FBUI_ERROR_LOC(110);
 		return FBUI_ERR_NULLPTR;
 	}
-	if (win->console != info->currcon)
+	if (win->console != fg_console)
 		return FBUI_SUCCESS;
 	if (!info->fbops->fb_filltriangle)
 		return FBUI_SUCCESS;
@@ -5552,7 +5558,7 @@ static int fbui_fill_triangle (struct fb_info *info, struct fbui_win *win,
 
 	p->clip_valid = 1;
 
-	r = win->is_wm ? info->bg_rects[info->currcon] : win->rects;
+	r = win->is_wm ? info->bg_rects[fg_console] : win->rects;
 	ix = 0;
 	lim = r->total << 2;
 	while (r && ix < lim) {
@@ -5584,7 +5590,7 @@ static int fbui_draw_rect (struct fb_info *info, struct fbui_win *win,
 		FBUI_ERROR_LOC(117);
 		return FBUI_ERR_NULLPTR;
 	}
-	if (win->console != info->currcon)
+	if (win->console != fg_console)
 		return FBUI_SUCCESS;
 	if (win->is_hidden)
 		return FBUI_SUCCESS;
@@ -5637,7 +5643,7 @@ static int fbui_fill_rect (struct fb_info *info, struct fbui_win *win,
 		FBUI_ERROR_LOC(120);
 		return FBUI_ERR_NULLPTR;
 	}
-	if (win->console != info->currcon)
+	if (win->console != fg_console)
 		return FBUI_SUCCESS;
 	if (win->is_hidden)
 		return FBUI_SUCCESS;
@@ -5686,7 +5692,7 @@ static int fbui_fill_rect (struct fb_info *info, struct fbui_win *win,
 			y3 > win->y1 ? win->y1 : y3);
 	}
 
-	r = win->is_wm ? info->bg_rects[info->currcon] : win->rects;
+	r = win->is_wm ? info->bg_rects[fg_console] : win->rects;
 	ix = 0;
 	lim = r->total << 2;
 	while (r && ix < lim) {
@@ -5719,7 +5725,7 @@ int fbui_clear (struct fb_info *info, struct fbui_win *win)
 		FBUI_ERROR_LOC(122);
 		return FBUI_ERR_NULLPTR;
 	}
-	if (win->console != info->currcon) {
+	if (win->console != fg_console) {
 		return FBUI_SUCCESS;
 	}
 	if (win->is_hidden || win->is_wm)
@@ -5810,7 +5816,7 @@ static int fbui_put_image (struct fb_info *info, struct fbui_win *win,
 		FBUI_ERROR_LOC(135);
 		return FBUI_ERR_NULLPTR;
 	}
-	if (win->console != info->currcon)
+	if (win->console != fg_console)
 		return FBUI_SUCCESS;
 	if (win->is_hidden)
 		return FBUI_SUCCESS;
@@ -5843,7 +5849,7 @@ static int fbui_put_image (struct fb_info *info, struct fbui_win *win,
 	length = bytes_per_pixel ? 
 		bytes_per_pixel * p->width * p->height :
 		(p->width * p->height + 7) >> 3;
-	if (!access_ok (VERIFY_READ,(void*)p->pixels, length)) {
+	if (!access_ok ((void*)p->pixels, length)) {
 		FBUI_ERROR_LOC(137);
 		return FBUI_ERR_BADADDR;
 	}
@@ -5880,7 +5886,7 @@ static int fbui_put_image (struct fb_info *info, struct fbui_win *win,
 			p->y1 > win->y1 ? win->y1 : p->y1);
 	}
 
-	r = win->is_wm ? info->bg_rects[info->currcon] : win->rects;
+	r = win->is_wm ? info->bg_rects[fg_console] : win->rects;
 	ix = 0;
 	lim = r->total << 2;
 	while (r && ix < lim) {
@@ -5911,7 +5917,7 @@ int fbui_copy_area (struct fb_info *info, struct fbui_win *win,
 	}
 	if (!win->unobscured)
 		return FBUI_ERR_OBSCURED; /* <- app must expose itself */
-	if (win->console != info->currcon)
+	if (win->console != fg_console)
 		return FBUI_SUCCESS;
 	if (win->is_hidden)
 		return FBUI_SUCCESS;
@@ -6762,7 +6768,7 @@ EXPORT_SYMBOL(combine_rgb_pixels);
 EXPORT_SYMBOL(pixel_from_rgb);
 EXPORT_SYMBOL(pixel_to_rgb);
 
-MODULE_AUTHOR("Zachary Smith <fbui@comcast.net>")
+MODULE_AUTHOR("Zachary Smith <fbui@comcast.net>");
 MODULE_DESCRIPTION("In-kernel graphical user interface for applications");
 MODULE_LICENSE("GPL");
 

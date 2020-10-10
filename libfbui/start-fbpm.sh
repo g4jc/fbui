@@ -1,4 +1,6 @@
 #/bin/sh
+# You have to export your PCF fonts directory or extract from LiveCD
+# export PCFFONTDIR=/user-disk/tree/usr/FBUI/fonts/75dpi
 
 sync
 sync

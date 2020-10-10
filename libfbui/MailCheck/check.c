@@ -11,7 +11,7 @@
 typedef unsigned char uchar;
 
 static int
-getline (int fd, char *buf, int buflen)
+getline2 (int fd, char *buf, int buflen)
 {
 	int got;
 	char ch;
@@ -93,7 +93,7 @@ checkmail (char *server, char *username, char *password)
 		return -1;
 	}
 
-	if (-1 == getline(fd, buf, 256)) {
+	if (-1 == getline2(fd, buf, 256)) {
 		close(fd);
 		return -1;
 	}
@@ -105,7 +105,7 @@ checkmail (char *server, char *username, char *password)
 		return -1;
 	}
 	
-	if (-1 == getline(fd, buf, 256)) {
+	if (-1 == getline2(fd, buf, 256)) {
 		close(fd);
 		return -1;
 	}
@@ -117,7 +117,7 @@ checkmail (char *server, char *username, char *password)
 		return -1;
 	}
 
-	if (-1 == getline(fd, buf, 256)) {
+	if (-1 == getline2(fd, buf, 256)) {
 		close(fd);
 		return -1;
 	}
@@ -129,7 +129,7 @@ checkmail (char *server, char *username, char *password)
 		return -1;
 	}
 
-	if (-1 == getline(fd, buf, 256)) {
+	if (-1 == getline2(fd, buf, 256)) {
 		close(fd);
 		return -1;
 	}
@@ -137,7 +137,7 @@ checkmail (char *server, char *username, char *password)
 	if (!strncmp ("+OK", buf, 3)) {
 
 		/* the next line has a count */
-		if (-1 == getline(fd, buf, 256)) {
+		if (-1 == getline2(fd, buf, 256)) {
 			close(fd);
 			return -1;
 		}

@@ -34,7 +34,7 @@
 
 int
 fbui_draw_string (Display *dpy, Window *win, Font *font,
-	short x0, short y, char *str_, 
+	short x0, short y, char *str_,
 	unsigned long color)
 {
         unsigned long n;
@@ -199,7 +199,7 @@ static uchar bit_reversal_array [256] =
 #define ZZ(a,b,c,d) ((((unsigned long)d)<<24)|(((unsigned long)c)<<16)|(((unsigned short)b)<<8)|a)
 
 
-inline unsigned long ULONG(char endian, unsigned char* pp) 
+inline __attribute__((always_inline)) unsigned long ULONG(char endian, unsigned char* pp) 
 {
 	if (endian) 
 		return (((unsigned long)pp[0]) << 24) | (((unsigned long)pp[1]) << 16) | (((unsigned short)pp[2]) << 8) | pp[3];
@@ -207,8 +207,7 @@ inline unsigned long ULONG(char endian, unsigned char* pp)
 		return (((unsigned long)pp[3]) << 24) | (((unsigned long)pp[2]) << 16) | (((unsigned short)pp[1]) << 8) | pp[0];
 }
 
-
-inline unsigned short USHORT(char endian, unsigned char* pp)
+inline __attribute__((always_inline)) unsigned short USHORT(char endian, unsigned char* pp)
 {
 	unsigned short i;
 
@@ -219,7 +218,8 @@ inline unsigned short USHORT(char endian, unsigned char* pp)
 
 	return i;
 }
-
+// TODO: Rather than inline these, we could make them defines...
+//#define USHORT(endian, pp) ((endian) ? ((((unsigned long)(pp)[0]) << 24) | (((unsigned long)(pp)[1]) << 16) | (((unsigned short)(pp)[2]) << 8) | (pp)[3]) : ((((unsigned long)(pp)[3]) << 24) | (((unsigned long)(pp)[2]) << 16) | (((unsigned short)(pp)[1]) << 8) | (pp)[0]) )
 
 // A pcf that is "compressed" has smaller metrics info
 // but the bitmap data is the same.

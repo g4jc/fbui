@@ -26,6 +26,7 @@
 #include <stdio.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#define timespec linux_timespec
 #include <fcntl.h>
 #include <sys/ioctl.h>
 #include <linux/fb.h>
@@ -33,12 +34,14 @@
 #include <unistd.h>
 #include <linux/vt.h>
 #include <signal.h>
-#include <errno.h>
+#define sigset_t linux_sigset_t
+#define timeval linux_timeval
+#define itimerval linux_itimerval
 #include <linux/input.h>
+#include <errno.h>
 #include <string.h>
 #include <stdlib.h>
 #include <ctype.h>
-#include <time.h>
 #include <sys/param.h>
 #include <asm/errno.h> // EFAULT etc
 
@@ -95,7 +98,7 @@ errlog (char *s, char *s2)
 	if (!f) 
 		return;
 	fprintf(f, "%s(): %s\n", s,s2); 
-	fprintf(f, "\tsystem error(%d): %s\n",  errno, strerror(errno));
+	//fprintf(f, "\tsystem error(%d): %s\n",  errno, strerror(errno));
 	fclose(f);
 }
 
@@ -231,7 +234,7 @@ fbui_flush (Display *dpy, Window *win)
 
 	if (win->command[1]) {
 		if (ioctl (dpy->fd, FBIO_UI_EXEC, (void*) win->command) < 0) {
-			fbui_errno = -errno;
+			//fbui_errno = -errno;
 			fbui_update_error_loc (dpy);
 		}
 	}
@@ -286,7 +289,7 @@ fbui_window_info (Display* dpy, Window *wm, struct fbui_wininfo* info, int ninfo
 
 	count = ioctl (dpy->fd, FBIO_UI_CONTROL, (unsigned long) &ctl);
 	if (count < 0) {
-		fbui_errno = -errno;
+		//fbui_errno = -errno;
 		fbui_update_error_loc (dpy);
 	}
 
@@ -310,7 +313,7 @@ fbui_accelerator (Display* dpy, Window *wm, short key, short op)
 	ctl.y = op;
 
 	if (ioctl (dpy->fd, FBIO_UI_CONTROL, (unsigned long) &ctl) < 0) {
-		fbui_errno = -errno;
+		//fbui_errno = -errno;
 		fbui_update_error_loc (dpy);
 	}
 
@@ -337,7 +340,7 @@ fbui_set_icon (Display* dpy, Window *win, unsigned long *data)
 	ctl.pointer = (void*) data;
 
 	if (ioctl (dpy->fd, FBIO_UI_CONTROL, (unsigned long) &ctl) < 0) {
-		fbui_errno = -errno;
+		//fbui_errno = -errno;
 		fbui_update_error_loc (dpy);
 	}
 
@@ -364,7 +367,7 @@ fbui_get_icon (Display* dpy, Window *win, int id, unsigned long *data)
 	ctl.pointer = (void*) data;
 
 	if (ioctl (dpy->fd, FBIO_UI_CONTROL, (unsigned long) &ctl) < 0) {
-		fbui_errno = -errno;
+		//fbui_errno = -errno;
 		fbui_update_error_loc (dpy);
 	}
 
@@ -390,7 +393,7 @@ fbui_cut (Display* dpy, Window *win, unsigned char *data, unsigned long length)
 	ctl.cutpaste_length = length;
 
 	if (ioctl (dpy->fd, FBIO_UI_CONTROL, (unsigned long) &ctl) < 0) {
-		fbui_errno = -errno;
+		//fbui_errno = -errno;
 		fbui_update_error_loc (dpy);
 	}
 
@@ -417,7 +420,7 @@ fbui_paste (Display* dpy, Window *win, unsigned char *data, unsigned long max)
 	ctl.cutpaste_length = max;
 
 	if (ioctl (dpy->fd, FBIO_UI_CONTROL, (unsigned long) &ctl) < 0) {
-		fbui_errno = -errno;
+		//fbui_errno = -errno;
 		fbui_update_error_loc (dpy);
 	}
 
@@ -442,7 +445,7 @@ fbui_cut_length (Display* dpy, Window *win)
 	ctl.id = win->id;
 
 	if (ioctl (dpy->fd, FBIO_UI_CONTROL, (unsigned long) &ctl) < 0) {
-		fbui_errno = -errno;
+		//fbui_errno = -errno;
 		fbui_update_error_loc (dpy);
 	}
 
@@ -468,7 +471,7 @@ fbui_placement (Display* dpy, Window *wm, int yes)
 	ctl.x = yes;
 
 	if (ioctl (dpy->fd, FBIO_UI_CONTROL, (unsigned long) &ctl) < 0) {
-		fbui_errno = -errno;
+		//fbui_errno = -errno;
 		fbui_update_error_loc (dpy);
 	}
 
@@ -492,7 +495,7 @@ fbui_redraw (Display *dpy, Window *wm, short win)
 	ctl.id2 = win;
 
 	if (ioctl (dpy->fd, FBIO_UI_CONTROL, (unsigned long) &ctl) < 0) {
-		fbui_errno = -errno;
+		//fbui_errno = -errno;
 		fbui_update_error_loc (dpy);
 	}
 
@@ -521,7 +524,7 @@ fbui_move_resize (Display *dpy, Window *wm, short id, short x, short y, short w,
 	ctl.height = h;
 
 	if (ioctl (dpy->fd, FBIO_UI_CONTROL, (unsigned long) &ctl) < 0) {
-		fbui_errno = -errno;
+		//fbui_errno = -errno;
 		fbui_update_error_loc (dpy);
 	}
 
@@ -556,7 +559,7 @@ fbui_raise (Display *dpy, Window *wm, short id)
 	ctl.id2 = wm ? id : -1;
 
 	if (ioctl (dpy->fd, FBIO_UI_CONTROL, (unsigned long) &ctl) < 0) {
-		fbui_errno = -errno;
+		//fbui_errno = -errno;
 		fbui_update_error_loc (dpy);
 	}
 
@@ -590,7 +593,7 @@ fbui_lower (Display *dpy, Window *wm, short id)
 	ctl.id2 = wm ? id : -1;
 
 	if (ioctl (dpy->fd, FBIO_UI_CONTROL, (unsigned long) &ctl) < 0) {
-		fbui_errno = -errno;
+		//fbui_errno = -errno;
 		fbui_update_error_loc (dpy);
 	}
 
@@ -615,11 +618,12 @@ fbui_delete (Display *dpy, Window *wm, short id)
 	int rv=1;
 	do {
 		rv = ioctl (dpy->fd, FBIO_UI_CONTROL, (unsigned long)&ctl);
-		if (rv < 0 && -errno != FBUI_ERR_DRAWING) {
+/*		if (rv < 0 && -errno != FBUI_ERR_DRAWING) {
 			fbui_errno = -errno;
 			fbui_update_error_loc (dpy);
 			break;
 		}
+*/
 	}
 	while (rv);
 
@@ -642,7 +646,7 @@ fbui_assign_keyfocus (Display *dpy, Window *wm, short id)
 	ctl.id2 = id;
 
 	if (ioctl (dpy->fd, FBIO_UI_CONTROL, (unsigned long)&ctl) < 0) {
-		fbui_errno = -errno;
+		//fbui_errno = -errno;
 		fbui_update_error_loc (dpy);
 	}
 
@@ -665,7 +669,7 @@ fbui_assign_ptrfocus (Display *dpy, Window *wm, short id)
 	ctl.id2 = id;
 
 	if (ioctl (dpy->fd, FBIO_UI_CONTROL, (unsigned long)&ctl) < 0) {
-		fbui_errno = -errno;
+		//fbui_errno = -errno;
 		fbui_update_error_loc (dpy);
 	}
 
@@ -688,7 +692,7 @@ fbui_hide (Display *dpy, Window *wm, short id)
 	ctl.id2 = wm ? id : -1;
 
 	if (ioctl (dpy->fd, FBIO_UI_CONTROL, (unsigned long)&ctl) < 0) {
-		fbui_errno = -errno;
+		//fbui_errno = -errno;
 		fbui_update_error_loc (dpy);
 	}
 
@@ -711,7 +715,7 @@ fbui_unhide (Display *dpy, Window *wm, short id)
 	ctl.id2 = wm ? id : -1;
 
 	if (ioctl (dpy->fd, FBIO_UI_CONTROL, (unsigned long)&ctl) < 0) {
-		fbui_errno = -errno;
+		//fbui_errno = -errno;
 		fbui_update_error_loc (dpy);
 	}
 
@@ -859,7 +863,7 @@ fbui_set_subtitle (Display *dpy, Window *win, char *str)
 	strncpy (ctl.string, str, FBUI_NAMELEN);
 
 	if (ioctl (dpy->fd, FBIO_UI_CONTROL, (unsigned long) &ctl) < 0) {
-		fbui_errno = -errno;
+		//fbui_errno = -errno;
 		fbui_update_error_loc (dpy);
 	}
 
@@ -1271,12 +1275,12 @@ fbui_poll_event (Display *dpy, Event *e, unsigned short mask)
 	ctl.rects = &e->rects;
 	retval = ioctl (dpy->fd, FBIO_UI_CONTROL, &ctl);
 
-	if (retval < 0) {
-		fbui_errno = -errno;
+/*	if (retval < 0) {
+		//fbui_errno = -errno;
 		fbui_update_error_loc (dpy);
-		return -errno;
+		//return -errno;
 	}
-
+*/
 	e->has_rects = event.has_rects;
 	e->type = event.type;
 	e->id = win_id = event.id;
@@ -1332,7 +1336,7 @@ fbui_wait_event (Display *dpy, Event *e, unsigned short mask)
 	ctl.rects = &e->rects;
 	int retval = ioctl (dpy->fd, FBIO_UI_CONTROL, &ctl);
 
-	if (retval < 0) {
+/*	if (retval < 0) {
 		fbui_errno = -errno;
 		if (errno == FBUI_ERR_NOEVENT)
 			fbui_errno = errno = 0;
@@ -1340,7 +1344,7 @@ fbui_wait_event (Display *dpy, Event *e, unsigned short mask)
 		fbui_update_error_loc (dpy);
 		return -errno;
 	}
-
+*/
 	e->has_rects = event.has_rects;
 	e->type = event.type;
 	short win_id = event.id;
@@ -1394,7 +1398,7 @@ fbui_get_dims (Display *dpy, Window *win, short *width, short *height)
 	result = ioctl (dpy->fd, FBIO_UI_CONTROL, &ctl);
 //printf ("getdims retval %d (%d)\n",result,-errno);
 	if (result < 0) {
-		fbui_errno = -errno;
+		//fbui_errno = -errno;
 		fbui_update_error_loc (dpy);
 		return fbui_errno;
 	}
@@ -1577,7 +1581,7 @@ static long parse_rgb (char *s)
 
 
 static int
-getline (FILE *f, char *buf, int buflen)
+getline2 (FILE *f, char *buf, int buflen)
 {
         int got;
         char ch;
@@ -1638,7 +1642,7 @@ parse_colorname (char *s)
 	FILE *f = fopen ("/usr/X11/lib/X11/rgb.txt","r");
 	char buffer [200];
 	if (!f) return -1;
-	while (getline (f, buffer, 199)) {
+	while (getline2 (f, buffer, 199)) {
 		int r,g,b;
 		char name[100];
 		if (4 == sscanf(buffer,"%u %u %u %s", &r, &g, &b, name)) {

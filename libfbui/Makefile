@@ -35,7 +35,7 @@ TARGETS=	${CLOCK} ${LOAD} ${CALC} ${TERM} ${MPEG} ${SCRIBBLE} ${VIEWER} ${BIFF} 
 
 all:	${LIB1} ${LIB2} ${TARGETS}
 
-CFLAGS= -g -I. -Wall
+CFLAGS= -g -I. -I/usr/src/linux -Wall
 
 ${LIB1}: ${OBJ1}
 	ar rs ${LIB1} ${OBJ1} 
