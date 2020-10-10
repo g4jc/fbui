@@ -39,19 +39,17 @@
 
 /* ==========================================================================*/
 /* FBUI ioctls */
-/* FBUI additions by Zachary T Smith, fbui@comcast.net */
-
 #define FBIO_UI_OPEN            0x4619  /* arg = ptr to fb_ui_open */
 #define FBIO_UI_CLOSE           0x461a  /* no arg */
 	/* Exec commands are queued and are not executed if window
 	 * is not visible. */
 #define FBIO_UI_EXEC            0x461b  /* arg = ptr to array of shorts (1st=count) */
 	/* Control commands are _not_ queued and are always executed*/
-#define FBIO_UI_CONTROL		0x461c  /* arg = ptr to fbui_ctrlparams struct */
+#define FBIO_UI_CONTROL		0x461c  /* arg = ptr to fbui_ctrl struct */
 #define FBUI_NAMELEN 32
 typedef unsigned long RGB;
 
-/* FBUI program type hints for fbui_openparams */
+/* FBUI program type hints for fbui_open */
 #define FBUI_PROGTYPE_NONE 0
 #define FBUI_PROGTYPE_APP 1		/* e.g. takes main area */
 #define FBUI_PROGTYPE_LAUNCHER 2	/* e.g. takes bottom row area */
@@ -67,41 +65,43 @@ typedef unsigned long RGB;
 #define FBUI_ACCEL_PGUP 4
 #define FBUI_ACCEL_PGDN 5
 
+#define FBUI_BUTTON_DOWN 1
 #define FBUI_BUTTON_LEFT 2
 #define FBUI_BUTTON_RIGHT 4
 #define FBUI_BUTTON_MIDDLE 8
 
 
 /* Passed _in_ to FBIO_UI_OPEN ioctl */
-struct fbui_openparams {
+struct fbui_open {
 	char	desired_vc;	/* -1 = current */
-	char	req_control;   	/* maximum one window manager per vc */
-	char	doing_autoposition;   /* used to differentiate btw fbwm & fbpm */
-	char	program_type;	/* if !0, window is hidden upon creation, wm informed */
-	char	need_keys;	/* key focus */
-	char	need_motion;	/* pointer focus */
-	char	receive_all_motion;	/* supported for window manager only */
-	char	initially_hidden;
-	short 	x0;
-	short 	y0;
-	short 	x1;
-	short 	y1;
+	unsigned char	req_control;   	/* maximum one window manager per vc */
+	unsigned char	doing_autoposition;   /* used to differentiate btw fbwm & fbpm */
+	unsigned char	program_type;	/* if !0, window is hidden upon creation, wm informed */
+	unsigned char	need_keys;	/* key focus */
+	unsigned char	receive_all_motion;	/* supported for window manager only */
+	unsigned char	initially_hidden;
+	short 	x;
+	short 	y;
+	short 	width;
+	short 	height;
 	short	max_width;
 	short	max_height;
 	__u32 	bgcolor;
 	char 	name [FBUI_NAMELEN];
 	char 	subtitle [FBUI_NAMELEN];
+	__u32	usermask;   // not used
+	short	maskwidth;
+	short	maskheight;
 };
 
 /* Data passed _out_ kernel via FBUI_WININFO command */
 struct fbui_wininfo {
 	short	id;
 	int	pid;
-	char	program_type;
-	char	hidden;
-	char	need_placement;
-	char	need_keys;
-	char	need_motion;
+	unsigned char	program_type;
+	unsigned char	hidden;
+	unsigned char	need_placement;
+	unsigned char	need_keys;
 	short	x, y;
 	short	width, height;
 	short	max_width;
@@ -110,31 +110,54 @@ struct fbui_wininfo {
 	char 	subtitle [FBUI_NAMELEN];
 };
 
+#define FBUI_RECT_ARYSIZE 14
+struct fbui_rects {
+	short	c [FBUI_RECT_ARYSIZE * 4]; /* [x0,y0,x1,y1]* */ 
+	unsigned short	flags;
+	short	total;
+	struct fbui_rects *next;
+};
+
 /* Data passed _out_ kernel via FBUI_POLLEVENT & FBUI_WAITEVENT commands */
 struct fbui_event {
 	char	type;
+	char	has_rects;	/* returned to userspace */
 	short	id;
 	int	pid;
 	short	x, y;
 	short	width, height;
 	short	key;
+	struct fbui_rects *rects;	/* kernel-only ptr */
 };
+
+/* Used by fbui_moveresize_window to tell the app what happened: */
+#define FBUI_SIZE_CHANGED 1
+#define FBUI_POSITION_CHANGED 2
+#define FBUI_CONTENTS_CHANGED 4
 
 /* Passed _in_ to FBIO_UI_CONTROL
  */
-struct fbui_ctrlparams {
+struct fbui_ctrl {
 	char	op;
 	short	id;
 	short	id2; /* used by wm */
 	short	x,y;
 	short 	width,height;
-	struct fbui_wininfo	*info;	/* passed _out_ */
+	struct fbui_wininfo	*info;	/* passed out */
 	int	ninfo;
 	unsigned char	*pointer;
 	unsigned long	cutpaste_length;
-	struct fbui_event 	*event;	/* passed _out_ */
-	char	string [FBUI_NAMELEN];
+	struct fbui_event 	*event;	/* passed out */
+	char	string [FBUI_NAMELEN];	/* passed in */
+	struct fbui_rects	*rects;	/* passed out */
 };
+
+#define FB_IMAGETYPE_RGB2	0	/* 16 bpp (5-6-5) */
+#define FB_IMAGETYPE_RGB3	1	/* 24 bpp (8-8-8) */
+#define FB_IMAGETYPE_RGB4	2	/* 24 bpp (8-8-8) + 8b zeroes */
+#define FB_IMAGETYPE_RGBA	3	/* 24 bpp (8-8-8) + 8b transparency */
+#define FB_IMAGETYPE_GREY	4	/* 8 bits grey => 24 bits RGB */
+#define FB_IMAGETYPE_MONO	5	/* 1 bpp, 1=>color 0=>transparent */
 
 #define FBUI_EVENTMASK_KEY	1
 #define FBUI_EVENTMASK_EXPOSE	2
@@ -147,10 +170,12 @@ struct fbui_ctrlparams {
 #define FBUI_EVENTMASK_WC	256
 #define FBUI_EVENTMASK_MOTION	512
 #define FBUI_EVENTMASK_BUTTON	1024
+#define FBUI_EVENTMASK_RAISE	2048
+#define FBUI_EVENTMASK_LOWER	4096
 #define FBUI_EVENTMASK_ALL 0x7fff
 
 /* Commands for FBIO_UI_CONTROL ioctl */
-#define FBUI_GETDIMS	0
+#define FBUI_NOOP	0
 #define FBUI_POLLEVENT	1
 #define FBUI_READMOUSE	2
 #define FBUI_READPOINT	3	/* wm only */
@@ -165,50 +190,41 @@ struct fbui_ctrlparams {
 #define FBUI_PASTE	12
 #define FBUI_CUTLENGTH	13
 #define FBUI_SUBTITLE	14
-#define FBUI_SETFONT	15
+#define FBUI_MOVERESIZE	16
+#define FBUI_ERRNO	17
+#define FBUI_GETCONSOLE	18
+#define FBUI_RAISE	19
+#define FBUI_LOWER	20
+#define FBUI_HIDE 	21
+#define FBUI_UNHIDE 	22
+#define FBUI_GETDIMS	23
+#define FBUI_ICON	24
+#define FBUI_BEEP	25
 
-#define FBUI_CTL_TAKESWIN 32
-/* Numbers >= FBUI_CTL_TAKESWIN take a window argument */
-#define FBUI_REDRAW	(FBUI_CTL_TAKESWIN+1)	/* wm only */
-#define FBUI_DELETE	(FBUI_CTL_TAKESWIN+2)	/* wm only */
-#define FBUI_HIDE 	(FBUI_CTL_TAKESWIN+3)	/* wm only */
-#define FBUI_UNHIDE 	(FBUI_CTL_TAKESWIN+4)	/* wm only */
-#define FBUI_ASSIGN_KEYFOCUS	(FBUI_CTL_TAKESWIN+5)	/* wm only */
-#define FBUI_ASSIGN_PTRFOCUS	(FBUI_CTL_TAKESWIN+7)	/* wm only */
-#define FBUI_MOVE_RESIZE	(FBUI_CTL_TAKESWIN+6)	/* wm only */
+#define FBUI_WM_ONLY 32
+#define FBUI_REDRAW	(FBUI_WM_ONLY+0)
+#define FBUI_DELETE	(FBUI_WM_ONLY+1)
+#define FBUI_ASSIGN_KEYFOCUS	(FBUI_WM_ONLY+2)
+#define FBUI_ASSIGN_PTRFOCUS	(FBUI_WM_ONLY+3)
+#define FBUI_GETICON	(FBUI_WM_ONLY+4)
+#define FBUI_XYTOWINDOW	(FBUI_WM_ONLY+5)
 
-/* FBUI font weight */
-#define FB_FONTWEIGHT_LIGHT (0)
-#define FB_FONTWEIGHT_MEDIUM (1)
-#define FB_FONTWEIGHT_BOLD (2)
-#define FB_FONTWEIGHT_BLACK (3)
-
-/* FBUI font */
-struct fbui_font {
-        unsigned char ascent;
-	unsigned char descent;
-        unsigned char first_char;
-        unsigned char last_char;
-        unsigned char nchars;
-        unsigned char *lefts;
-        unsigned char *heights;
-        unsigned char *widths;	/* # of bits used for pixels */
-        unsigned char *bitwidths; /* # bits actually used.. e.g. 32 */
-        unsigned char *descents;
-        unsigned char *bitmap_buffer;
-        unsigned char **bitmaps;
-};
-#define FBUI_FONTSIZE sizeof(struct fbui_font)
+#define FBUI_ICON_WIDTH 24
+#define FBUI_ICON_HEIGHT 32
+#define FBUI_ICON_DEPTH 32
 
 /* Some useful colors */
 #define RGB_NOCOLOR	0xff000000
-#define RGB_TRANSP	0xff000000
+#define RGB_TRANSPARENT	0xff000000
 #define RGB_BLACK 	0
 #define RGB_GRAY	0xa0a0a0
+#define RGB_GREY	0xa0a0a0
 #define RGB_WHITE 	0xffffff
 #define RGB_RED 	0xff0000
 #define RGB_GREEN	0xff00
+#define RGB_DARKGREEN	0xA000
 #define RGB_BLUE	0xff
+#define RGB_NAVYBLUE	0x80
 #define RGB_CYAN	0xffff
 #define RGB_YELLOW	0xffff00
 #define RGB_MAGENTA	0xff00ff
@@ -221,35 +237,39 @@ struct fbui_font {
 
 /* FBUI event types. Events are 31-bit values; type is lower 4 bits */
 #define FBUI_EVENT_NONE 	0
-#define FBUI_EVENT_EXPOSE 	1
+#define FBUI_EVENT_EXPOSE 	1	/* expose without rects */
 #define FBUI_EVENT_HIDE 	2
 #define FBUI_EVENT_UNHIDE 	3
 #define FBUI_EVENT_ENTER 	4	/* future... mouse pointer enter */
 #define FBUI_EVENT_LEAVE 	5	/* future... mouse pointer leave */
 #define FBUI_EVENT_KEY 		6
-#define FBUI_EVENT_MOVE_RESIZE	7	/* window was moved by wm */
+#define FBUI_EVENT_MOVERESIZE	7	/* moved and resized => need redraw */
 #define FBUI_EVENT_ACCEL 	8	/* keyboard accelerator (Alt-) key */
 #define FBUI_EVENT_WINCHANGE 	9	/* recv'd only by window manager */
 #define FBUI_EVENT_MOTION	10	/* mouse pointer moved */
 #define FBUI_EVENT_BUTTON	11	/* mouse button activity */
+#define FBUI_EVENT_RAISE	12
+#define FBUI_EVENT_LOWER	13
+#define FBUI_EVENT_CLICKAREA	14	/* received only by wm */
+#define FBUI_EVENT_NAMECHANGE 	15	/* received only by wm */
+#define FBUI_EVENT_LAST 15
 
 /* FBUI queued commands: for use with FBIO_UI_EXEC ioctl */
 #define FBUI_NONE 	0
 #define FBUI_COPYAREA 	1
 #define FBUI_POINT 	2
 #define FBUI_LINE 	3
-#define FBUI_HLINE 	4
-#define FBUI_VLINE 	5
-#define FBUI_RECT 	6
-#define FBUI_FILLAREA 	7
-#define FBUI_CLEAR 	8
-#define FBUI_INVERTLINE	9
-#define FBUI_STRING 	10
-#define FBUI_PUT 	11
-#define FBUI_PUTRGB 	12
-#define FBUI_PUTRGB3 	13
-#define FBUI_CLEARAREA 	14
-#define FBUI_TINYBLIT	15
+#define FBUI_LINETO	4
+#define FBUI_HLINE 	5
+#define FBUI_VLINE 	6
+#define FBUI_RECT 	7
+#define FBUI_FILLRECT 	8
+#define FBUI_CLEAR 	9
+#define FBUI_CLEARAREA	10
+#define FBUI_IMAGE	11
+#define FBUI_FULLIMAGE	12
+#define FBUI_MONOIMAGE	13
+#define FBUI_TRIANGLE	14
 
 /* FBUI ioctl return values */
 #define FBUI_SUCCESS 0
@@ -263,7 +283,7 @@ struct fbui_font {
 #define FBUI_ERR_INVALIDCMD -247
 #define FBUI_ERR_BADPID -246
 #define FBUI_ERR_ACCELBUSY -245
-#define FBUI_ERR_NOFONT -244
+#define FBUI_ERR_BADCMD -244
 #define FBUI_ERR_NOMEM -243
 #define FBUI_ERR_NOTOPEN -242
 #define FBUI_ERR_OVERLAP -241
@@ -285,6 +305,11 @@ struct fbui_font {
 #define FBUI_ERR_DRAWING -225
 #define FBUI_ERR_MISSINGPROCENT -224
 #define FBUI_ERR_BADVC -223
+#define FBUI_ERR_NOT_OPERATIONAL -222
+#define FBUI_ERR_INTERNAL -221
+#define FBUI_ERR_WINDELETED -220
+#define FBUI_ERR_NOICON -219
+#define FBUI_ERR_OBSCURED -218
 
 /* ==========================================================================*/
 
@@ -745,86 +770,7 @@ struct fb_pixmap {
 };
 
 
-/*=====================================================*/
-struct fbui_window { 
-	short	id;		/* window id */
-	int 	pid; 		/* process id */
-	int 	console;	/* virtual console in which window appears */
-	u32 	bgcolor;	/* background */
-	short 	x0, y0, x1, y1; /* absolute coordinates */
-	short 	width, height;
-	short	max_width;
-	short	max_height;
-
-	short	mouse_x, mouse_y;
-
-	char	program_type;
-	unsigned int need_placement : 1;
-	unsigned int drawing : 1;   /* 1 => don't allow input_handler to draw ptr */
-	unsigned int pointer_inside : 1;
-	unsigned int is_wm : 1;
-	unsigned int doing_autopos : 1; /* used by wm only; {0:fbwm, 1:fbpm} */
-	unsigned int is_hidden: 1;
-	unsigned int do_invert : 1;
-	unsigned int need_keys : 1;
-	unsigned int need_motion : 1;
-	unsigned int receive_all_motion : 1;
-	unsigned int font_valid : 1;
-
-	struct fbui_font font;	/* default font, used if font ptr NULL */
-
-	struct fbui_processentry *processentry;
-
-	char	name[FBUI_NAMELEN];
-	char	subtitle[FBUI_NAMELEN];
-
-	u32	accelerators[8]; /* supporting only 8-bit chars now */
-	short	pending_accel;
-
-	struct fbui_window *next;
-};
-
-extern int fbui_init (struct fb_info *info);
-extern int fbui_switch (struct fb_info *info, int con);
-extern int fbui_release (struct fb_info *info, int user);
-extern int fbui_exec (struct fb_info *info, short win_id, short n, unsigned char *arg);
-extern int fbui_control (struct fb_info *info, struct fbui_ctrlparams*);
-extern int fbui_open (struct fb_info *info, struct fbui_openparams*);
-extern int fbui_close (struct fb_info *info, short);
-
-extern void fb_clear (struct fb_info *, u32);
-extern void fb_point (struct fb_info *, short,short, u32, char);
-extern u32 fb_read_point (struct fb_info *, short,short);
-extern void fb_hline (struct fb_info *,short,short,short,u32);
-extern void fb_vline (struct fb_info *,short,short,short,u32);
-extern void fb_putpixels_native (struct fb_info *, short,short,short,unsigned char*,char);
-extern void fb_putpixels_rgb (struct fb_info *, short,short,short,unsigned long*,char);
-extern void fb_putpixels_rgb3 (struct fb_info *, short,short,short,unsigned char*,char);
-extern short fb_getpixels_rgb (struct fb_info *, short x,short y,short n,unsigned long*,char);
-extern void fb_copyarea (struct fb_info *, short,short,short,short,short,short);
-
-
-/* Per-process event queue data
- */
-struct fbui_processentry {
-	unsigned int in_use : 1;
-	unsigned int waiting : 1;
-	char console;
-	char nwindows;
-	char window_num; /* which window to check next for event */
-	short index;
-	int pid;
-	wait_queue_head_t waitqueue;
-	unsigned short	wait_event_mask;
-
-#define FBUI_MAXEVENTSPERPROCESS (CONFIG_FB_UI_EVENTQUEUELEN)
-	struct fbui_event events [FBUI_MAXEVENTSPERPROCESS];
-	short	events_head;
-	short	events_tail;
-	short	events_pending;
-	spinlock_t queuelock;
-	struct semaphore queuesem;
-};
+#ifdef CONFIG_FB_UI
 
 #define FBUI_MAXCONSOLES 12
 #define FBUI_TOTALACCELS 128
@@ -833,12 +779,170 @@ struct fbui_processentry {
 #define FBUI_MAXWINDOWSPERVC (CONFIG_FB_UI_WINDOWSPERVC)
 
 
+/*=====================================================*/
+
+struct fbui_win { 
+	short	id;		/* window id */
+	int 	pid; 		/* process id */
+	u32 	bgcolor;	/* background */
+	short 	x0, y0, x1, y1; /* absolute coordinates */
+	short 	width, height;
+	short	max_width;
+	short	max_height;
+
+	short	draw_x, draw_y;
+
+	short	level;	/* 0 = toplevel, -1 = window manager, -2 = overlay */
+
+	struct fbui_rects *rects;
+	struct fbui_rects *to_expose;
+
+	unsigned int console : 4;
+	unsigned int program_type : 3;
+	unsigned int need_placement : 1;
+	unsigned int drawing : 1;   /* 1 => don't allow input_handler to draw ptr */
+	unsigned int pointer_inside : 1;
+	unsigned int is_wm : 1;
+	unsigned int is_overlay : 1;
+	unsigned int doing_autopos : 1; /* used by wm only; {0:fbwm, 1:fbpm} */
+	unsigned int is_hidden: 1;
+	unsigned int unobscured : 1;
+	unsigned int need_keys : 1;
+	unsigned int receive_all_motion : 1;	/* e.g. "eyes" program */
+	unsigned int rectangle_work : 1; /* 1 => rectangle list needs work */
+	unsigned int expose_event : 1;	/* used if event buffer fills up */
+	unsigned int raise_event : 1;	/* used if event buffer fills up */
+	unsigned int lower_event : 1;	/* used if event buffer fills up */
+
+#if 0
+#define FBUI_CLICKAREA_MOVE 1
+#define FBUI_CLICKAREA_RESIZE 2
+#define FBUI_CLICKAREA_HRESIZE 4
+#define FBUI_CLICKAREA_VRESIZE 8
+#define FBUI_CLICKAREA_CLOSE 16
+#define FBUI_CLICKAREA_MINIMIZE 32
+#define FBUI_CLICKAREA_MAXIMIZE 64
+#define FBUI_CLICKAREA_MENU 128
+	unsigned char clickarea_present;	/* 1 => have rect */
+	unsigned short clickareas [32];	/* if clicked, wm gets message */
+#endif
+
+	struct fbui_processentry *processentry;
+
+	char	name[FBUI_NAMELEN];
+	char	subtitle[FBUI_NAMELEN];
+
+	u32	*icon;
+
+	u32	accelerators[8]; /* supporting only 8-bit chars now */
+	short	pending_accel;
+
+	struct fbui_win *next;
+};
+
+extern int fbui_init (struct fb_info *info);
+extern int fbui_switch (struct fb_info *info, int con);
+extern int fbui_release (struct fb_info *info, int user);
+extern int fbui_exec (struct fb_info *info, short win_id, short n, unsigned char *arg);
+extern int fbui_control (struct fb_info *info, struct fbui_ctrl*);
+extern int fbui_open (struct fb_info *info, struct fbui_open*);
+extern int fbui_close (struct fb_info *info, short);
+
+
+/* Per-process event queue data
+ */
+struct fbui_processentry {
+	unsigned int in_use : 1;
+	unsigned int waiting : 1;
+	unsigned int console : 4;
+	char nwindows;
+	short window_num; /* which window to check next for event */
+	short index;
+	int pid;
+	wait_queue_head_t waitqueue;
+	unsigned short	wait_event_mask;
+
+#define FBUI_MAXEVENTSPERPROCESS (CONFIG_FB_UI_EVENTQUEUELEN)
+	struct fbui_event *events;
+	short	events_head;
+	short	events_tail;
+	short	events_pending;
+	spinlock_t queuelock;
+	struct semaphore queuesem;
+};
+
+struct fb_draw { 	/* passed to fb drawing routines */
+	short x0;
+	short y0;
+	short x1;
+	short y1;
+	unsigned long color;
+	short x2; /* used by copyarea2, fill_triangle */
+	short y2;
+	short clip_x0;
+	short clip_y0;
+	short clip_x1;
+	short clip_y1;
+	unsigned int clip_valid : 1;
+	/* unsigned long color1, color2; */
+};
+
+#define FB_LOCATION_KERNEL	0
+#define FB_LOCATION_USER	1	/* getuser */
+#define FB_LOCATION_VRAM	2	/* fb_read, or accelerated */
+
+struct fb_put { 	/* passed to fb put and get routines */
+	short x0;
+	short y0;
+	short x1;
+	short y1;
+	short width;
+	short height;
+	short xstart;
+	short xend;
+	short ystart;
+	short yend;
+	unsigned char *pixels;
+	short clip_x0;
+	short clip_y0;
+	short clip_x1;
+	short clip_y1;
+	u32 color; /* for mono only */
+
+	unsigned int type : 3;
+	unsigned int location : 2;
+	unsigned int clip_valid : 1;
+};
+
+struct fb_dda {
+	short x, y;
+	short dx, dy;
+	short j, e, s1, s2, xchange;
+	short xprev, yprev;
+};
+
+
+
+#if 0
 struct fbui_focus_stack {
         struct rw_semaphore sem;
         short top;
         short ids [FBUI_MAXWINDOWSPERVC]; /* window ids */
 };
+#endif
 
+extern u32 pixel_to_rgb (struct fb_info *info, u32 value);
+extern u32 pixel_from_rgb (struct fb_info *info, u32 value);
+extern u32 combine_rgb_pixels (u32 orig_value, u32 value, u32 transp);
+extern void generic_fillrect (struct fb_info*, struct fb_draw*);
+extern void generic_putimage (struct fb_info*, struct fb_put*);
+extern void generic_line (struct fb_info*, struct fb_draw*);
+extern void generic_filltriangle (struct fb_info*, struct fb_draw*);
+extern u32 generic_getpixels_rgb (struct fb_info*, struct fb_put*);
+extern u32 generic_read_point (struct fb_info*, short, short);
+extern void init_bresenham (struct fb_dda*, short,short,short,short);
+
+#endif
 
 /*=====================================================*/
 
@@ -883,7 +987,7 @@ struct fb_ops {
 	void (*fb_fillrect) (struct fb_info *info, const struct fb_fillrect *rect);
 	/* Copy data from area to another */
 	void (*fb_copyarea) (struct fb_info *info, const struct fb_copyarea *region);
-	/* Draws a image to the display */
+	/* Draws an image to the display */
 	void (*fb_imageblit) (struct fb_info *info, const struct fb_image *image);
 
 	/* Draws cursor */
@@ -903,16 +1007,23 @@ struct fb_ops {
 	int (*fb_mmap)(struct fb_info *info, struct file *file, struct vm_area_struct *vma);
 
 #ifdef CONFIG_FB_UI
-	void (*fb_clear) (struct fb_info *info, u32);
         u32 (*fb_read_point) (struct fb_info *info, short x, short y);
-        void (*fb_point) (struct fb_info *info, short,short,u32,char);
-        void (*fb_hline) (struct fb_info *info, short,short,short,u32);
-        void (*fb_vline) (struct fb_info *info, short,short,short,u32);
-	void (*fb_putpixels_native) (struct fb_info *, short,short,short,unsigned char*,char);
-	short (*fb_getpixels_rgb) (struct fb_info *, short x,short y,short n,unsigned long*,char);
-	void (*fb_putpixels_rgb) (struct fb_info *, short,short,short,unsigned long*,char);
-	void (*fb_putpixels_rgb3) (struct fb_info *, short,short,short,unsigned char*,char);
-	void (*fb_copyarea2) (struct fb_info *, short,short,short,short,short,short);
+	u32 (*fb_getpixels_rgb) (struct fb_info *, struct fb_put *params);
+
+	/* These functions differ from the fillrect/copyarea/imageblit above
+	 * in that 
+	 *   (A) they support clipping, and 
+ 	 *   (B) the line and fill routines support transparency (A-channel).
+	 *
+	 * If your accelerated hardware does not support transparency,
+	 * just call the generic routine e.g. generic_line, whenever
+	 * the RGB color's A channel is nonzero.
+	 */
+        void (*fb_line) (struct fb_info *info, struct fb_draw *params);
+        void (*fb_filltriangle) (struct fb_info *info, struct fb_draw *params);
+        void (*fb_fillrect2) (struct fb_info *info, struct fb_draw *params);
+	void (*fb_copyarea2) (struct fb_info *, struct fb_draw *params);
+	void (*fb_putimage) (struct fb_info *, struct fb_put *params);
 #endif
 };
 
@@ -973,33 +1084,49 @@ struct fb_info {
 /*------------FBUI data in fb_info--------------*/
 #ifdef CONFIG_FB_UI
 
-	struct fbui_window 	*keyfocus_window [FBUI_MAXCONSOLES];
-	struct fbui_window 	*pointerfocus_window [FBUI_MAXCONSOLES];
+	unsigned int fbui : 1;	/* 0 if FBUI is not operational e.g. 
+				   bpp isn't compiled in */
 
-	char	total_wins [FBUI_MAXCONSOLES];
+	char		fbui_errno; 	/* type of error */
+	unsigned char 	fbui_errloc;	/* location of error */
+
+	struct fbui_rects	*bg_rects[FBUI_MAXCONSOLES]; /* needs semaphore */
+
+	struct fbui_win 	*keyfocus_window [FBUI_MAXCONSOLES];
+	struct fbui_win 	*pointerfocus_window [FBUI_MAXCONSOLES];
 
 	unsigned char	redsize, greensize, bluesize;
 	unsigned char	redshift, greenshift, blueshift;
 
-	struct fbui_window 	*window_managers [FBUI_MAXCONSOLES];
-	struct fbui_window 	*windows [FBUI_MAXCONSOLES * FBUI_MAXWINDOWSPERVC];
+	struct fbui_win 	*window_managers [FBUI_MAXCONSOLES];
+
+	struct fbui_win 	**windows;
 	struct rw_semaphore 	winptrSem;
 
-	/* protection for each fbui_window struct */
-	struct semaphore 	windowSems [FBUI_MAXCONSOLES * FBUI_MAXWINDOWSPERVC];
+	/* protection for each fbui_win struct */
+	struct semaphore 	*windowSems;
+
+	/* protection so that >1 process doesn't hide/unhide mouse ptr */
+	struct semaphore 	*pointerSems;
 
 	struct semaphore preSem;
-	struct fbui_processentry processentries [FBUI_MAXCONSOLES * FBUI_MAXWINDOWSPERVC];
+	struct fbui_processentry *processentries;
 
-	u32 		bgcolor[FBUI_MAXCONSOLES]; /* from window manager */
-	void		*accelerators [FBUI_TOTALACCELS * FBUI_MAXCONSOLES];
+	u32	bgcolor[FBUI_MAXCONSOLES]; /* from window manager */
+
+	void	**accelerators;
 	unsigned char	force_placement [FBUI_MAXCONSOLES];
 	struct tty_struct 	*ttysave [FBUI_MAXCONSOLES];
-	struct fbui_window 	*pointer_window [FBUI_MAXCONSOLES];
+	struct fbui_win 	*pointer_window [FBUI_MAXCONSOLES];
+
 	unsigned int	pointer_active : 1;
 	unsigned int	pointer_hidden : 1;
 	unsigned int 	have_hardware_pointer: 1;
-	unsigned int	mode24 : 1;
+	unsigned int	mode24 : 1; /* 24 or 32 bpp 8:8:8 */
+	unsigned int	mode565: 1; /* 16 bpp 5:6:5 */
+	unsigned int	mode555: 1; /* 15 bpp 5:5:5 */
+	unsigned int	have_background_image : 1;
+
 	short		curr_mouse_x, curr_mouse_y; /* <--primary */
 	short		mouse_x0, mouse_y0, mouse_x1, mouse_y1;
 

@@ -5,6 +5,7 @@ SRC=	main.c check.c
 test:	${SRC}
 	gcc -lm -I.. -g ${SRC} ../libfbui.a -o ${EXE} 
 	# strip ${EXE}
+	touch ~/.fbcheckrc
 
 clean:
 	rm -f ${EXE}

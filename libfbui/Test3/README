@@ -1,0 +1,5 @@
+
+
+The purpose of this test is to send erroneous bytes to FBUI
+to see how it responds, in particular if it crashes the kernel.
+

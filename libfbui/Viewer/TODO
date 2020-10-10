@@ -1,11 +1,19 @@
 
 Need:
 
+* Bug involving larger images?
+
+DONE * Move image manipulation to libfbuiimage.
+
+* Thumbnail view capability.
+
 * Slideshow capability.
 
 * Readers for PNMs, NEFs.
 
-* Need zoom and rotate functionality.
+* Need zoom functionality.
+
+DONE * Need rotate functionality.
 
 * What can be done to speed up jpeglib reading?
 

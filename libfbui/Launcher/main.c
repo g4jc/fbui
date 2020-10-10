@@ -2,7 +2,7 @@
 /*=========================================================================
  *
  * fblauncher, a launcher for FBUI (in-kernel framebuffer UI)
- * Copyright (C) 2004 Zachary T Smith, fbui@comcast.net
+ * Copyright (C) 2004 Zachary Smith, fbui@comcast.net
  *
  * This module is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -39,6 +39,7 @@
 
 
 #include "libfbui.h"
+#include "libfbuifont.h"
 
 
 #define VERSION "0.1"
@@ -192,18 +193,21 @@ main(int argc, char** argv)
 	if (!readfile (path))
 		FATAL ("error reading ~/.launcher");
 
-        titlefont = font_new ();
-        listfont = font_new ();
+	dpy = fbui_display_open ();
+	if (!dpy)
+		FATAL("cannot open display");
+
+        titlefont = Font_new ();
+        listfont = Font_new ();
 	if (!titlefont || !listfont)
 		FATAL ("cannot allocate Font");
-
         if (!pcf_read (titlefont, "helvR12.pcf"))
 		FATAL ("cannot read Helv bold 12 point");
         if (!pcf_read (listfont, "timR10.pcf"))
 		FATAL ("cannot read Times 12 point");
 
 	short indent,a,d;
-	font_string_dims (listfont, "88. ", &indent, &a, &d);
+	Font_string_dims (listfont, "88. ", &indent, &a, &d);
 
 	listfontheight = listfont->ascent + listfont->descent;
 	titlefontheight = titlefont->ascent + titlefont->descent;
@@ -214,10 +218,6 @@ main(int argc, char** argv)
 	unsigned long listfontcolor = RGB_ORANGE;
 	unsigned long sepcolor = RGB_WHITE;
 	unsigned long listhighlightcolor = RGB_LTBROWN;
-
-	dpy = fbui_display_open ();
-	if (!dpy)
-		FATAL("cannot open display");
 
 	w = 150;
 	h = 150;
@@ -231,6 +231,7 @@ main(int argc, char** argv)
                 true, // need keys
 		false,
 		false, 
+		NULL,
 		argc,argv);
 	if (!win) 
 		FATAL ("cannot create window");
@@ -299,7 +300,7 @@ main(int argc, char** argv)
 				needdraw=1;
 			}
 			break;
-		case FBUI_EVENT_MOVE_RESIZE:
+		case FBUI_EVENT_MOVERESIZE:
 			w = ev.width;
 			h = ev.height;
 			break;
@@ -313,16 +314,16 @@ main(int argc, char** argv)
 			sprintf (title, "Launcher %s",VERSION);
 
 			short wid,a,d;
-			font_string_dims (titlefont, title, &wid,&a,&d);
+			Font_string_dims (titlefont, title, &wid,&a,&d);
 			short title_pos = (w - wid) / 2;
 
-			fbui_fill_area (dpy, win, 0, 0, w-1, titlefontheight, titlecolor);
+			fbui_fill_rect (dpy, win, 0, 0, w-1, titlefontheight, titlecolor);
 			fbui_draw_hline (dpy, win, 0, w-1, titlefontheight, sepcolor);
 			fbui_draw_string (dpy, win, titlefont, title_pos, 0, 
 				title, titlefontcolor);
 		}
 
-		fbui_fill_area (dpy, win, 0, titlefontheight+1, w-1, h, listcolor);
+		fbui_fill_rect (dpy, win, 0, titlefontheight+1, w-1, h, listcolor);
 
 		fbui_draw_line (dpy, win, w-10, 2, w-3, 9, RGB_WHITE);
 		fbui_draw_line (dpy, win, w-10, 9, w-3, 2, RGB_WHITE);
@@ -336,7 +337,7 @@ main(int argc, char** argv)
 			short y = titlefontheight+1+ix*listfontheight;
 
 			if (ix == highlight_which) 
-				fbui_fill_area (dpy, win, 0, y, w, y + listfontheight,
+				fbui_fill_rect (dpy, win, 0, y, w, y + listfontheight,
 					listhighlightcolor);
 
 			fbui_draw_string (dpy, win, listfont, 

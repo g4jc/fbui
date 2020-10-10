@@ -209,6 +209,7 @@ extern int fbui_parse_geom (char *s1, short *w, short *h, short *xr, short *yr);
 int master_fd;
 struct winsize ws;
 
+
 int
 /*main (int argc, char **argv, char **envp)*/
 main (int argc, char **argv)
@@ -228,7 +229,7 @@ main (int argc, char **argv)
 	short cols = 80; 
 	short rows = 33;
 	short xrel = 0;
-	short yrel = 10;
+	short yrel = 0;
 
 	argv++;
 	argc--;

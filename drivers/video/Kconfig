@@ -39,42 +39,69 @@ config FB
 	  device-aware may cause unexpected results. If unsure, say N.
 
 config FB_UI
-        bool "Framebuffer UI: in-kernel graphical user interface"
+        bool "FramebufferUI: in-kernel windowing system"
         depends on FB
         default y
         help
-          FBUI is a small (25kB) GUI.
-	  It was placed in the kernel in order to prevent that
-	  it will ever become bloated, as X and other GUIs have.
+          FBUI is a small (47kB) GUI.
 
-          FBUI currently allows each process to have one window, and
-          windows may not overlap. Each virtual console may have windows.
-          One process per VC may request to be a window manager.
+	  I have placed it in the kernel in order to prevent that it 
+	  ever become bloated, such as how X and other userspace
+	  GUIs have become. It also serves to demonstrate that bloat
+	  is not necessary or inevitable.
+
+          FBUI currently allows each process to have multiple windows,
+	  and windows may overlap. Your may have windows on every
+	  virtual console, but no process may have windows on
+	  more than one console.
+
+          One process per virtual console may request to be a window 
+	  manager, although technically a window manager is not required.
 
           Graphics functions include
-                draw point, read point, draw line, draw rectangle,
-                fill rectangle, clear window, clear area, draw inverted line,
-                put pixels, put RGB pixels, copy area, get event, draw string.
+                Draw point, read point, draw line, draw rectangle,
+                fill rectangle, clear window, clear area, put image
+		(1bpp mono, 8bpp grey, RGB 16/24/32bpp, RGB+Alpha 32bpp)
+                copy area, wait/poll event. All underlying drawing
+		routines are required to be clippable.
 
-          Fonts supported are monochrome PCF format and they reside in userspace.
+	  I have updated the VESA driver (vesafb.c) to support
+	  the extra functionality that FBUI requires, as well as
+	  some accelerations that I have come up with. However
+	  FBUI also includes generic functions for packed-pixel
+	  framebuffers.
 
-	  Both keyboard and mouse input are supported, but you must
-	  compile in the event interface (/dev/input/event*) and 
+	  Both keyboard and mouse input are supported, but you MUST
+	  compile the event interface (/dev/input/event*) and 
 	  the fbui_input module.
 
           Current sample programs include:
-             load monitor, jpeg viewer, analog clock, two window managers,
-             screen dump, and terminal.
+             load monitor, jpeg/tiff viewer, analog clock, two very simple
+	     window managers, calculator, scribble pad, screen dump, 
+	     terminal, benchmark, etc.
+
+config FB_UI_EVENTQUEUELEN
+        int "Per-process event queue length"
+        depends on FB_UI
+        default "24"
+        help
+		This is the maximum number of events allowed in
+		each process's event queue, which has a fixed size.
+		This number should be at least as large as the
+		number of windows, because when you switch consoles
+		FBUI produces Expose events for each non-hidden
+		window.
 
 config FB_UI_WINDOWSPERVC
         int "Maximum windows per virtual console"
         depends on FB_UI
         default "24"
-
-config FB_UI_EVENTQUEUELEN
-        int "Per-process event queue length"
-        depends on FB_UI
-        default "16"
+	help
+		Currently windows pointers are kept in an array,
+		providing O(1) access time. This means however
+		that there is a hard limit on the number of windows
+		per VC. Later I may add a hashed approach and
+		remove that limit.
 
 config FB_MODE_HELPERS
         bool "Enable Video Mode Handling Helpers"
@@ -356,6 +383,29 @@ config FB_VESA
 	  compliant graphic cards. The older VESA 1.2 cards are not supported.
 	  You will get a boot time penguin logo at no additional cost. Please
 	  read <file:Documentation/fb/vesafb.txt>. If unsure, say Y.
+
+config FB_UI_32BPP
+        bool "Support 32 bits per pixel in FBUI"
+        depends on FB_VESA && FB_UI
+        default y
+	help
+	  32bpp implies that only 24bpp are used,
+	  but there is some speedup over 24bpp mode
+	  since the data is longword aligned.
+
+config FB_UI_24BPP
+        bool "Support 24 bits per pixel in FBUI"
+        depends on FB_VESA && FB_UI
+        default n
+
+config FB_UI_16BPP
+        bool "Support 16 bits per pixel in FBUI"
+        depends on FB_VESA && FB_UI
+        default n
+	help
+	  16bpp implies 5 bits for red, 6 for green,
+	  and 5 for blue. This mode is sometimes twice
+	  as fast as 32bpp.
 
 config VIDEO_SELECT
 	bool
@@ -820,6 +870,20 @@ config FB_NEOMAGIC
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called neofb.
+
+config FB_UI_24BPP
+        bool "Support 24 bits per pixel in FBUI"
+        depends on FB_NEOMAGIC && FB_UI
+        default n
+
+config FB_UI_16BPP
+        bool "Support 16 bits per pixel in FBUI"
+        depends on FB_NEOMAGIC && FB_UI
+        default n
+	help
+	  16bpp implies 5 bits for red, 6 for green,
+	  and 5 for blue. This mode is sometimes twice
+	  as fast as 32bpp.
 
 config FB_KYRO
 	tristate "IMG Kyro support"

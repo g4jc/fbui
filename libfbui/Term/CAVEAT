@@ -1,0 +1,6 @@
+
+Note that for some reason, elvis (vi) locks up fbterm. I didn't write
+the terminal code and I haven't had time to debug it.
+
+Vim however works fine.
+

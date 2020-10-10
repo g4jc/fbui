@@ -2,7 +2,7 @@
 /*=========================================================================
  *
  * fbpm, a window manager for FBUI (in-kernel framebuffer UI)
- * Copyright (C) 2004 Zachary T Smith, fbui@comcast.net
+ * Copyright (C) 2004-2005 Zachary Smith, fbui@comcast.net
  *
  * This module is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -31,6 +31,7 @@
  * Oct 21, 2004, fbui@comcast.net: began conversion to panel manager
  * Dec 12, 2004, fbui@comcast.net: implemented alt-key switching between apps
  * Dec 31, 2004, fbui@comcast.net: added drawing of background areas
+ * Sep 06, 2005, fbui@comcast.net: removed background image
  */
 
 
@@ -216,7 +217,7 @@ draw_window_list (Display *dpy, Window *self)
 
 	lx = win_w - listarea_width;
 	ly = win_h - listarea_height;
-	fbui_fill_area (dpy, self, lx,ly, win_w,win_h, RGB_CYAN);
+	fbui_fill_rect (dpy, self, lx,ly, win_w,win_h, RGB_CYAN);
 
 	int appcount = 0;
 	for (i=0; i < window_count; i++) {
@@ -233,11 +234,14 @@ draw_window_list (Display *dpy, Window *self)
 				bits = bits_source [k+1]; 
 				bits <<= 8;
 				bits |= bits_source [k];
-				bits = reverse16 (bits);
+				// bits = reverse16 (bits);
 
-				fbui_tinyblit (dpy, self, lx+2, ly+j,
-					RGB_BLACK, RGB_NOCOLOR, 
-					icon_width, bits);
+				int xx = 0;
+				while (xx < icon_width) {
+					if (bits & (1 << xx))
+						fbui_draw_point (dpy, self, lx+2+xx, ly+j, 0);
+					xx++;
+				}
 			}
 
 			fbui_draw_string (dpy, self, font1,
@@ -251,7 +255,7 @@ draw_window_list (Display *dpy, Window *self)
 
 	// No apps? Clear out the title bar.
 	if (!appcount) {
-		// fbui_clear_area (dpy, self, 0, 0, mainarea_width-1, line_height-1);
+		fbui_clear_area (dpy, self, 0, 0, mainarea_width-1, line_height-1);
 		fbui_draw_string (dpy, self, font1, lx+3, ly, "No apps.", RGB_BLUE);
 	}
 }
@@ -391,11 +395,14 @@ main(int argc, char** argv)
 
 	window_count = 0;
 
-        font1 = font_new ();  // main font
-        // font2 = font_new ();  // subtitle font
+	dpy = fbui_display_open ();
+	if (!dpy)
+		FATAL ("cannot open display");
 
+        font1 = Font_new ();  // main font
+        // font2 = Font_new ();  // subtitle font
         if (!pcf_read (font1, "timR12.pcf")) {
-                font_free (font1);
+                Font_free (font1);
                 font1 = NULL;
 		FATAL ("cannot load font");
         }
@@ -406,10 +413,6 @@ main(int argc, char** argv)
 
 	long fgcolor = RGB_NOCOLOR; // not used
 	long bgcolor = STEELBLUE;
-
-	dpy = fbui_display_open ();
-	if (!dpy)
-		FATAL ("cannot open display");
 
 	self = fbui_window_open (dpy, 1,1, &win_w, &win_h,
 		9999,9999, // no max wid/ht
@@ -423,12 +426,13 @@ main(int argc, char** argv)
 		false,
 		true, // all motion
 		false,// not hidden
+		NULL, // no mask
 		argc,argv);
 	if (!self) {
-		fbui_display_close (dpy);
 		FATAL ("cannot open manager window");
 	}
 
+#if 0
         /* Check for a background image */
         image_width=0;
         image_height=0;
@@ -461,6 +465,7 @@ main(int argc, char** argv)
 		}
 
         }
+#endif
 
 	/* If the wm was started after windows appeared,
 	 * we need to hide those windows to prevent fbui_overlap_check
@@ -525,7 +530,7 @@ main(int argc, char** argv)
 		FATAL ("cannot force auto-placement");
 
 	int need_list = 1;
-	int need_redraw = 0;
+	int need_redraw = 1;
 	goto getlist;
 
 	while(1) {
@@ -544,22 +549,25 @@ printf ("%s got event %s\n", argv[0], fbui_get_event_name (ev.type));
 		if (ev.win != self)
 			FATAL ("event not for our window");
 
-		if (num == FBUI_EVENT_EXPOSE) {
+		switch (num) {
+		case FBUI_EVENT_EXPOSE:
 			need_redraw = 1;
-		}
-		else if (num == FBUI_EVENT_WINCHANGE) {
+			break;
+		
+		case FBUI_EVENT_WINCHANGE:
 			need_redraw = 1;
 			need_list = 1;
-		}
-		else if (num == FBUI_EVENT_ENTER) {
+			break;
+		
+		case FBUI_EVENT_ENTER:
 			printf ("fbpm got Enter (it shouldnt)\n");
 			continue;
-		}
-		else if (num == FBUI_EVENT_LEAVE) {
+		
+		case FBUI_EVENT_LEAVE:
 			printf ("fbpm got Leave (it shouldnt)\n");
 			continue;
-		}
-		else if (num == FBUI_EVENT_ACCEL) {
+		
+		case FBUI_EVENT_ACCEL: {
 			short key = ev.key;
 
 printf ("ACCEL key %d\n", key);
@@ -589,6 +597,11 @@ printf ("ACCEL key %d\n", key);
 				system ("fbdump");
 				continue;
 			}
+			break;
+		  }
+
+		default:
+			printf ("other event #%d\n", num);
 		}
 
 getlist:
@@ -841,8 +854,8 @@ printf ("  new pos '%s' = %d %d, %d %d\n", info[i].name,x0,y0,x1,y1);
 					fbui_move_resize (dpy, self, info[i].id,
 						new_x0[i], 
 						new_y0[i], 
-						new_x1[i],
-						new_y1[i]);
+						new_x1[i] - new_x0[i] + 1,
+						new_y1[i] - new_y0[i] + 1);
 			}
 
 			/* Unhide windows that need it.
@@ -892,7 +905,7 @@ printf ("   program %s.... %s\n", info[i].name,info[i].hidden?"hidden":"");
 
 			need_redraw = 0;
 
-			draw_background (dpy,self);
+			// draw_background (dpy,self);
 			draw_window_list (dpy, self);
 
 			i=0; 
@@ -916,17 +929,6 @@ finit:
 	for (i=0; i < window_count; i++) {
 		if (info[i].pid != mypid)
 			kill (info[i].pid, SIGTERM);
-	}
-
-	for (i=0; i < window_count; i++) {
-#if 0
-		draw_background (dpy, self,
-		  info[i].x,
-		  info[i].y - line_height,
-		  info[i].x + info[i].width - 1,
-		  info[i].y - 1);
-		fbui_flush (dpy, self);
-#endif
 	}
 
 	fbui_window_close (dpy, self);

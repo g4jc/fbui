@@ -29,7 +29,7 @@
  *		Also fixed a bug in BLOCKING mode where write_chan returns
  *		EAGAIN
  *
- * 2004/09/20	Z Smith (fbui@comcast.net): erase-after-read of read_buf
+ * 2004/09/20	Z Smith (plinius@comcast.net): erase-after-read of read_buf
  */
 
 #include <linux/types.h>

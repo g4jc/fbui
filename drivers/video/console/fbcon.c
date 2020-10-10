@@ -2040,6 +2040,8 @@ static int fbcon_switch(struct vc_data *vc)
 	}
 
 #ifdef CONFIG_FB_UI
+	/* Console switch really ought to generate an input event.
+	 */
         fbui_switch (info, vc->vc_num);
 #endif
 

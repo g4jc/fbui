@@ -2,7 +2,7 @@
 /*=========================================================================
  *
  * fbdump, a screen dumper for FBUI (in-kernel framebuffer UI)
- * Copyright (C) 2004 Zachary T Smith, fbui@comcast.net
+ * Copyright (C) 2004 Zachary Smith, fbui@comcast.net
  *
  * This module is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by

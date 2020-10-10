@@ -400,9 +400,12 @@ int tgaflag;
   close(outfile);
 }
 
+
 /*
- * store to FBUI
+ * store to FBUI window
  */
+static unsigned short *image_data = NULL;
+
 static void store_fbui (outname,src,offset,incr,height,tgaflag)
 char *outname;
 unsigned char *src[];
@@ -483,6 +486,7 @@ int tgaflag;
 	true, 
 	false, 
 	false, 
+	NULL,
 	argc,argv);
     if (!fbui_window)
       FATAL ("cannot create window");
@@ -494,8 +498,9 @@ int tgaflag;
   cgu = Inverse_Table_6_9[matrix_coefficients][2];
   cgv = Inverse_Table_6_9[matrix_coefficients][3];
   
-  unsigned char *rows = (unsigned char*) malloc (3 * horizontal_size * height);
-  if (!rows)
+  if (!image_data)
+  	image_data = (unsigned short*) malloc (2 * horizontal_size * height);
+  if (!image_data)
     FATAL ("cannot allocate image buffer");
 
   for (i=0; i<height; i++)
@@ -513,19 +518,21 @@ int tgaflag;
       g = Clip[(y - cgu*u - cgv*v + 32768)>>16];
       b = Clip[(y + cbu*u + 32786)>>16];
 
-      unsigned long row_ix = 3 * (j + i * horizontal_size);
-      rows [row_ix++] = r;
-      rows [row_ix++] = g;
-      rows [row_ix++] = b;
+      r >>= 3;
+      g >>= 2;
+      b >>= 3;
+      unsigned long row_ix = j + i * horizontal_size;
+      unsigned long pixel =
+                ((r << 11) & 0xf800) |
+                ((g << 5) & 0x7e0) |
+                (b & 31);
+
+      image_data [row_ix++] = pixel;
     }
   }
 
-  for (i=0; i<height; i++)
-  {
-    fbui_put_rgb3 (fbui_display, fbui_window, 0, i, horizontal_size, 
-	rows + i * horizontal_size * 3);
-    fbui_flush (fbui_display, fbui_window);
-  }
+  fbui_put_image (fbui_display, fbui_window, FB_IMAGETYPE_RGB2, 0, 0, 
+	horizontal_size, height, (unsigned char*)image_data);
 
   time_t t2 = time(NULL);
   if (t != t2) {
@@ -545,8 +552,6 @@ int tgaflag;
       }
     }
   }
-
-  free (rows);
 }
 
 static void putbyte(c)

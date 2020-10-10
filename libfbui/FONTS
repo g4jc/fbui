@@ -1,4 +1,21 @@
 
-Fonts should be in /usr/X11/lib/fonts/75dpi, and they should NOT
-be gzipped.
+FBUI currently uses PCF fonts, which are a compiled version
+of BDF fonts. X Windows also uses PCF fonts, so you should use
+those that come with X. These derive from Adobe and although
+they are not scaleable or anti-aliased, they do look good.
 
+A typical directory in which one might find the PCF fonts
+is /usr/X11/lib/fonts/75dpi however you may have to use
+"find" to locate them, such as "find / -name 75dpi".
+
+If the directory is not the exact one which libfbuifonts
+expects to find them in, i.e. /usr/X11/lib/fonts/75dpi,
+you can set the environment variable PCFFONTDIR to the
+correct directory.
+
+Comparison:
+
+My PCF fonts reader:	29 kB
+Freetype:		470 kB
+The T1 library:		222 kB
+TeX-based fonts:	~50 kB ??

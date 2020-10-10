@@ -1,0 +1,43 @@
+
+FBUI
+Copyright 2004-2005 by Zack Smith.
+
+------ * ------
+
+FBUI is based on several vital ideas:
+
+1. bloated programs are hideous, wasteful, and avoidable.
+
+2. a windowing system should never use 20 megabytes of RAM,
+   as XFree86 does; it is bloated.
+
+3. there is a need to impose some limitation on code size,
+   because programmers will produce ever-growing code.
+
+4. it's not a good idea to put drivers in userspace,
+   which is what X does.
+
+5. having an in-kernel windowing system also provides
+   a handy way of accessing hardware overlay windows.
+
+FBUI addresses these ideas in the following ways:
+
+1. abandon X
+
+2. abandon X, keep FBUI's memory use low.
+
+3. by putting the GUI into the kernel, an upper limit
+   is imposed on bloat in the core GUI code since all 
+   kernel code must be small and fast.
+
+4. with FBUI, both the windowing system (which I assert
+   is effectively a kind of driver) and the low-level 
+   drawing routines are always in the kernel. No application
+   deals directly with hardware registers. FBUI also
+   permits adding routines that make use of hardware
+   acceleration, which should save space.
+
+5. FBUI provides the abstraction of a window, and it is
+   natural therefore to threat an overlay like just any 
+   other window.
+

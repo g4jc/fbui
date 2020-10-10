@@ -1,0 +1,41 @@
+Framebuffer resolution: 1024x768, 16bpp
+opaque lines
+	-> rate    33354.75/sec
+opaque hlines
+	-> rate   922098.10/sec
+opaque text
+	-> rate     4769.75/sec
+random opaque rectangles
+	-> rate    21547.50/sec
+filled transparent rectangles
+	-> pixels per second =  3510000.00/sec
+filled opaque rectangles
+	-> pixels per second = 581782500.00/sec
+fullscreen filled rectangles
+	-> pixels per second = 775724625.00/sec
+opaque points
+	-> rate  1476145.30/sec
+256x16 put-rgb3 operations
+	-> pixels per second = 38485606.40/sec
+256x16 put-rgb opaque operations
+	-> pixels per second = 92642304.00/sec
+copyareas upward
+	-> rate       48.72/sec
+copyareas downard
+	-> rate       48.72/sec
+copyareas rightward
+	-> rate       48.72/sec
+copyareas leftward
+	-> rate       68.22/sec
+640x480 rgb4 put image
+	-> rate      297.70/sec
+640x480 rgb4 fillrect 
+	-> rate     2446.25/sec
+640x480 rgb3 put image
+	-> rate      126.95/sec
+640x480 rgb2 put image
+	-> rate     1220.60/sec
+640x480 grey put image
+	-> rate      502.10/sec
+640x480 mono image writes per second
+	-> rate      591.55/sec

@@ -1,0 +1,4 @@
+
+* Since this is POP3 and across the Internet, 
+  this program really ought to log in securely.
+

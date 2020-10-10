@@ -2,7 +2,7 @@
 /*=========================================================================
  *
  * fbcalc, a simple calculator for FBUI (in-kernel framebuffer UI)
- * Copyright (C) 2004 Zachary T Smith, fbui@comcast.net
+ * Copyright (C) 2004 Zachary Smith, fbui@comcast.net
  *
  * This module is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -23,8 +23,12 @@
  *
  *=======================================================================*/
 
+/* Changes
+ *
+ * 07 Sep 2005, fbui@comcast.net: added icon
+ */
 
-#define VERSION "0.2"
+#define VERSION "0.3"
 
 
 #include <stdio.h>
@@ -62,6 +66,49 @@ static char *keystring[] = {
 	"0", ".", "-", "=",
 	NULL
 
+};
+
+#define t_ RGB_TRANSPARENT
+#define BK 0
+#define GR 0x8000
+#define BL 0xa0
+#define NB 0xe0e0ff
+#define GG 0xa0a0a0
+#define n_ 0xc0c0c0
+#define w_ 0xf8f8f8
+static unsigned long icon [FBUI_ICON_WIDTH * FBUI_ICON_HEIGHT] = {
+BK,BK,BK,BK,BK,BK,BK,BK,BK,BK,BK,BK,BK,BK,BK,BK,BK,BK,BK,BK,BK,BK,BK,t_,
+BK,w_,w_,w_,w_,w_,w_,w_,w_,w_,w_,w_,w_,w_,w_,w_,w_,w_,w_,w_,w_,w_,BK,t_,
+BK,w_,w_,w_,w_,w_,w_,w_,w_,w_,w_,w_,w_,GR,w_,w_,w_,GR,GR,GR,w_,w_,BK,GG,
+BK,w_,w_,w_,w_,w_,w_,w_,w_,w_,w_,w_,w_,GR,w_,w_,w_,GR,w_,GR,w_,w_,BK,GG,
+BK,w_,w_,w_,w_,w_,w_,w_,w_,w_,w_,w_,w_,GR,w_,GR,w_,GR,GR,GR,w_,w_,BK,GG,
+BK,w_,w_,w_,w_,w_,w_,w_,w_,w_,w_,w_,w_,w_,w_,w_,w_,w_,w_,w_,w_,w_,BK,GG,
+BK,BK,BK,BK,BK,BK,BK,BK,BK,BK,BK,BK,BK,BK,BK,BK,BK,BK,BK,BK,BK,BK,BK,GG,
+BK,n_,n_,n_,n_,n_,n_,n_,n_,n_,n_,n_,n_,n_,n_,n_,n_,n_,n_,n_,n_,n_,BK,GG,
+BK,n_,n_,n_,n_,n_,n_,n_,n_,n_,n_,n_,n_,n_,n_,n_,n_,n_,n_,n_,n_,n_,BK,GG,
+BK,n_,n_,BL,BL,BL,BL,BL,n_,BL,BL,BL,BL,BL,n_,BL,BL,BL,BL,BL,n_,n_,BK,GG,
+BK,n_,n_,BL,NB,NB,NB,BL,n_,BL,NB,NB,NB,BL,n_,BL,NB,NB,NB,BL,n_,n_,BK,GG,
+BK,n_,n_,BL,NB,NB,NB,BL,n_,BL,NB,NB,NB,BL,n_,BL,NB,NB,NB,BL,n_,n_,BK,GG,
+BK,n_,n_,BL,BL,BL,BL,BL,n_,BL,BL,BL,BL,BL,n_,BL,BL,BL,BL,BL,n_,n_,BK,GG,
+BK,n_,n_,n_,n_,n_,n_,n_,n_,n_,n_,n_,n_,n_,n_,n_,n_,n_,n_,n_,n_,n_,BK,GG,
+BK,n_,n_,BL,BL,BL,BL,BL,n_,BL,BL,BL,BL,BL,n_,BL,BL,BL,BL,BL,n_,n_,BK,GG,
+BK,n_,n_,BL,NB,NB,NB,BL,n_,BL,NB,NB,NB,BL,n_,BL,NB,NB,NB,BL,n_,n_,BK,GG,
+BK,n_,n_,BL,NB,NB,NB,BL,n_,BL,NB,NB,NB,BL,n_,BL,NB,NB,NB,BL,n_,n_,BK,GG,
+BK,n_,n_,BL,BL,BL,BL,BL,n_,BL,BL,BL,BL,BL,n_,BL,BL,BL,BL,BL,n_,n_,BK,GG,
+BK,n_,n_,n_,n_,n_,n_,n_,n_,n_,n_,n_,n_,n_,n_,n_,n_,n_,n_,n_,n_,n_,BK,GG,
+BK,n_,n_,BL,BL,BL,BL,BL,n_,BL,BL,BL,BL,BL,n_,BL,BL,BL,BL,BL,n_,n_,BK,GG,
+BK,n_,n_,BL,NB,NB,NB,BL,n_,BL,NB,NB,NB,BL,n_,BL,NB,NB,NB,BL,n_,n_,BK,GG,
+BK,n_,n_,BL,NB,NB,NB,BL,n_,BL,NB,NB,NB,BL,n_,BL,NB,NB,NB,BL,n_,n_,BK,GG,
+BK,n_,n_,BL,BL,BL,BL,BL,n_,BL,BL,BL,BL,BL,n_,BL,BL,BL,BL,BL,n_,n_,BK,GG,
+BK,n_,n_,n_,n_,n_,n_,n_,n_,n_,n_,n_,n_,n_,n_,n_,n_,n_,n_,n_,n_,n_,BK,GG,
+BK,n_,n_,BL,BL,BL,BL,BL,n_,BL,BL,BL,BL,BL,n_,BL,BL,BL,BL,BL,n_,n_,BK,GG,
+BK,n_,n_,BL,NB,NB,NB,BL,n_,BL,NB,NB,NB,BL,n_,BL,NB,NB,NB,BL,n_,n_,BK,GG,
+BK,n_,n_,BL,NB,NB,NB,BL,n_,BL,NB,NB,NB,BL,n_,BL,NB,NB,NB,BL,n_,n_,BK,GG,
+BK,n_,n_,BL,BL,BL,BL,BL,n_,BL,BL,BL,BL,BL,n_,BL,BL,BL,BL,BL,n_,n_,BK,GG,
+BK,n_,n_,n_,n_,n_,n_,n_,n_,n_,n_,n_,n_,n_,n_,n_,n_,n_,n_,n_,n_,n_,BK,GG,
+BK,n_,n_,n_,n_,n_,n_,n_,n_,n_,n_,n_,n_,n_,n_,n_,n_,n_,n_,n_,n_,n_,BK,GG,
+BK,BK,BK,BK,BK,BK,BK,BK,BK,BK,BK,BK,BK,BK,BK,BK,BK,BK,BK,BK,BK,BK,BK,GG,
+t_,GG,GG,GG,GG,GG,GG,GG,GG,GG,GG,GG,GG,GG,GG,GG,GG,GG,GG,GG,GG,GG,GG,GG,
 };
 
 static char begin_new_value = false;
@@ -108,19 +155,19 @@ void draw_button (Display *dpy, Window *win, int i, int j, char highlight)
 	int y1 = y0 + button_height - 1;
 
 	if (highlight)
-		fbui_fill_area (dpy, win, x0,y0,x1,y1, RGB_CYAN);
+		fbui_fill_rect (dpy, win, x0,y0,x1,y1, RGB_CYAN);
 
 	fbui_draw_rect (dpy, win, x0,y0,x1,y1, RGB_BLACK);
 
 	char *str = keystring [i + j*cols];
 
 	short w,a,d,h;
-	font_string_dims (font,str,&w,&a,&d);
+	Font_string_dims (font,str,&w,&a,&d);
 	h = a+d;
 	w = (button_width-w)/2;
 	h = (button_height-h)/2;
 
-	fbui_draw_string (dpy,win,NULL,
+	fbui_draw_string (dpy,win,font,
 		w+x0+1,h+y0+1, str, fgcolor);
 }
 
@@ -131,7 +178,7 @@ void update_value ()
 	int y0 = button_height/2;
 	int x1 = win_w - 1 - x0;
 	int y1 = y0 + button_height - 1;
-	fbui_fill_area (dpy,win,x0,y0,x1,y1,RGB_WHITE);
+	fbui_fill_rect (dpy,win,x0,y0,x1,y1,RGB_WHITE);
 	fbui_draw_rect (dpy,win,x0,y0,x1,y1,fgcolor);
 	char valstr[100];
 
@@ -141,11 +188,11 @@ void update_value ()
 		sprintf (valstr, "%.12g", value);
 
 	short w,a,d,h;
-	font_string_dims (font,valstr,&w,&a,&d);
+	Font_string_dims (font,valstr,&w,&a,&d);
 	h = a+d;
 	w = (win_w - w - button_width);
 	h = (button_height-h)/2;
-	fbui_draw_string (dpy,win,NULL,
+	fbui_draw_string (dpy,win,font,
 		w+x0,h+y0+1, valstr, fgcolor);
 }
 
@@ -335,25 +382,26 @@ main(int argc, char** argv)
 		true, // need keys
 		false,
 		false, 
+		NULL,
 		argc,argv);
 	if (!win) 
 		FATAL ("cannot create window");
 
-	font = font_new ();
+	fbui_set_icon (dpy, win, icon);
+
+	font = Font_new ();
 
 	if (win_w < 200) {
 		if (!pcf_read (font, "courR10.pcf")) {
-			font_free (font);
+			Font_free (font);
 			FATAL ("cannot load font");
 		}
 	} else {
 		if (!pcf_read (font, "courR12.pcf")) {
-			font_free (font);
+			Font_free (font);
 			FATAL ("cannot load font");
 		}
 	}
-
-	fbui_set_font (dpy,win,font);
 
 	double tmp1,tmp2;
 	tmp1 = cols + (cols + 1.0)/2.0;
@@ -408,10 +456,13 @@ main(int argc, char** argv)
 			continue;
 		}
 		else
-		if (num == FBUI_EVENT_MOVE_RESIZE) {
-			win_w = ev.width;
-			win_h = ev.height;
-			need_draw=1;
+		if (num == FBUI_EVENT_MOVERESIZE) {
+			if (ev.key & FBUI_SIZE_CHANGED) {
+				win_w = ev.width;
+				win_h = ev.height;
+				need_draw = true;
+				full_draw = true;
+			}
 		}
 		else
 		if (num == FBUI_EVENT_KEY) {

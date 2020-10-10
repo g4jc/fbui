@@ -2,7 +2,7 @@
 /*=========================================================================
  *
  * libfbui, a library for accessing FBUI (in-kernel framebuffer GUI).
- * Copyright (C) 2003-2004 Zachary T Smith, fbui@comcast.net
+ * Copyright (C) 2003-2005 Zachary Smith, fbui@comcast.net
  *
  * This module is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -24,11 +24,10 @@
  *=======================================================================*/
 
 
-#ifndef _FBUI_H
-#define _FBUI_H
+#ifndef LIBFBUI_H
+#define LIBFBUI_H
 
 #include <linux/fb.h>
-
 
 typedef unsigned char uchar;
 typedef unsigned char bool;
@@ -37,7 +36,7 @@ enum { true=1, false=0 };
 
 #define LIBFBUI_COMMANDBUFLEN (4096)
 
-
+extern int dpi;
 
 typedef struct win {
 	int id;
@@ -46,6 +45,10 @@ typedef struct win {
 	unsigned short command_ix;
 
 	int width, height;
+
+	void *font;
+
+	char deleted;
 
 	struct win *next;
 } Window;
@@ -56,7 +59,9 @@ typedef struct {
 	Window *list;
 
 	unsigned char shift,ctrl,alt;
-	short width, height, depth;
+	char console;
+
+	short width, height, depth, bytes_per_pixel;
 
 	/* needed for creating native-format pixmaps */
 	short red_offset, green_offset, blue_offset;
@@ -67,11 +72,22 @@ typedef struct {
 	Window *win;
 	short id;
 	char type;
+	char has_rects;
+	struct fbui_rects rects;
 	short key;
 	short x,y,width,height;
 } Event;
 
+#include "libfbuifont.h"
 
+
+extern int fbui_errno;
+extern int fbui_errloc;
+
+extern void fbui_update_error_loc (Display *dpy);
+
+extern char fbui_get_active_console (Display *dpy);
+extern char fbui_get_console (Display *dpy);
 
 extern int fbui_poll_event (Display *dpy, Event *, unsigned short mask); /* returns <0 when error */
 extern int fbui_wait_event (Display *dpy, Event *, unsigned short mask); /* returns <0 when error */
@@ -90,12 +106,16 @@ extern int fbui_cut (Display*,Window *wm, unsigned char *data, unsigned long len
 extern int fbui_paste (Display*,Window *wm, unsigned char *data, unsigned long max_length);
 extern long fbui_cut_length (Display*,Window *wm);
 
+extern int fbui_raise(Display*,Window *wm,short id);
+extern int fbui_lower(Display*,Window *wm,short id);
 extern int fbui_hide(Display*,Window *wm,short id);
 extern int fbui_unhide(Display*,Window *wm,short id);
 extern int fbui_delete(Display*,Window *wm,short id);
 extern int fbui_redraw(Display*,Window *wm,short id);
 extern int fbui_move_resize(Display*,Window *wm,short id,short,short,short,short);
+
 extern int fbui_window_info (Display*,Window *wm,struct fbui_wininfo*,int);
+
 extern int fbui_accelerator (Display* dpy, Window *wm,short key, short op);
 
 extern int fbui_assign_keyfocus (Display*,Window *wm,short);
@@ -103,32 +123,45 @@ extern int fbui_assign_ptrfocus (Display*,Window *wm,short);
 
 extern int fbui_placement (Display* dpy,Window *wm, int yes);
 
-extern int fbui_draw_point (Display*,Window*, short x, short y,unsigned long);
+extern int fbui_draw_point (Display*,Window*, short x, short y,
+			unsigned long);
 extern unsigned long fbui_read_point (Display*,Window*, short x, short y);
-extern int fbui_draw_vline (Display*,Window*, short x, short y0, short y1,unsigned long);
-extern int fbui_draw_hline (Display*,Window*, short x0, short x1, short y,unsigned long);
+extern int fbui_draw_vline (Display*,Window*, short x, short y0, short y1,
+			unsigned long);
+extern int fbui_draw_hline (Display*,Window*, short x0, short x1, short y,
+			unsigned long);
 
 extern int fbui_set_subtitle (Display*,Window*, char *);
 
-extern int
-fbui_tinyblit (Display *dpy, Window *win, short x, short y,
-                unsigned long color,
-                unsigned long bgcolor,
-                short width,
-                unsigned long bits);
-
-extern int fbui_draw_line (Display*,Window*, short x0, short y0, short x1, short y1,unsigned long);
-extern int fbui_invert_line (Display*,Window*, short x0, short y0, short x1, short y1);
-extern int fbui_draw_string (Display*,Window*, struct fbui_font*,short, short, char *,unsigned long);
-extern int fbui_set_font (Display *dpy, Window *win, struct fbui_font *font);
 extern int fbui_clear (Display *, Window*);
-extern int fbui_draw_rect (Display*,Window*, short x0, short y0, short x1, short y1,unsigned long);
-extern int fbui_fill_area (Display*,Window*, short x0, short y0, short x1, short y1,unsigned long);
-extern int fbui_clear_area (Display*,Window*, short x0, short y0, short x1, short y1);
-extern int fbui_copy_area (Display*,Window*, short xsrc, short ysrc, short xdest, short ydest, short w, short h);
-extern int fbui_put (Display*,Window*, short x, short y, short n, unsigned char *p);
-extern int fbui_put_rgb (Display*,Window*, short x, short y, short n, unsigned long *p);
-extern int fbui_put_rgb3 (Display*,Window*, short x, short y, short n, unsigned char *p);
+
+extern int fbui_fill_triangle (Display *dpy, Window *win, 
+		    short x0, short y0, short x1, short y1, 
+		    short x2, short y2, unsigned long color);
+
+extern int fbui_draw_line (Display*,Window*, short x0, short y0, 
+			short x1, short y1,unsigned long);
+extern int fbui_draw_rect (Display*,Window*, short x0, short y0, 
+			short x1, short y1,unsigned long);
+
+extern int fbui_clear_area (Display*,Window*, short x0, short y0, 
+			short x1, short y1);
+extern int fbui_fill_rect (Display*,Window*, short x0, short y0, 
+			short x1, short y1,unsigned long);
+extern int fbui_copy_area (Display*,Window*, short xsrc, short ysrc, 
+			short xdest, short ydest, short w, short h);
+
+extern int fbui_put_image_partial (Display*,Window*, char type, short x, short y, 
+			short width, short height, 
+			short xstart, short ystart, short xend, short yend,
+			unsigned char *p);
+
+extern int fbui_put_image (Display*,Window*, char type, short x, short y, 
+			short width, short height, 
+			unsigned char *p);
+
+extern int fbui_put_image_mono (Display *dpy, Window *win, short x, short y, 
+                     short wid, short ht, unsigned char *p, unsigned long color);
 
 extern Display *fbui_display_open ();
 extern void fbui_display_close (Display *);
@@ -149,6 +182,7 @@ extern Window *fbui_window_open (Display *dpy, short width, short height,
 	char need_keys,
 	char receive_all_motion,
 	char initially_hidden,
+	unsigned char *mask,
 	int argc,char** argv);
 
 /* special keys */
@@ -189,8 +223,6 @@ extern Window *fbui_window_open (Display *dpy, short width, short height,
 #define FONT_WEIGHT_BOLD (2)
 #define FONT_WEIGHT_BLACK (3)
 
-typedef struct fbui_font Font;
-
 extern void font_string_dims (Font *font, unsigned char*, short *w, short *ascent, short *descent);
 extern void font_char_dims (Font *font, uchar ch, short *w, short *asc, short *desc);
 
@@ -204,11 +236,17 @@ extern char *fbui_get_event_name (int type);
 extern int display_fd;
 extern Display *my_dpy;
 
-void fbui_print_error (int value);
-char *fbui_error_name (int value);
+extern void fbui_print_error (int value);
+extern char *fbui_error_name (int value);
 
+extern int fbui_set_icon (Display* dpy, Window *win, unsigned long *data);
+extern int fbui_get_icon (Display* dpy, Window *win, int id, unsigned long *data);
 
-#define FATAL(s) { fbui_display_close (my_dpy); fprintf(stderr,"Error in %s(): %s\n",__FUNCTION__,s); exit(1); }
+extern bool fbui_xpm_to_icon (Display *dpy, Window *win, char **xpm);
+
+extern int fbui_beep (Display *dpy, short pitch, short duration);
+
+#define FATAL(s) { fbui_display_close (my_dpy); fprintf(stderr,"Error in %s(): %s\n",__FUNCTION__,s); if (fbui_errno) fbui_print_error (fbui_errno); exit(1); }
 #define WARNING(s) { fprintf(stderr,"Warning in %s(): %s\n",__FUNCTION__,s); }
 
 

@@ -1,0 +1,4 @@
+
+This tests whether windows can overlap, and
+if so, whether we can draw into them without problems.
+

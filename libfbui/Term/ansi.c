@@ -35,7 +35,7 @@ extern char* tabstops;
 
 extern unsigned long color[];
 extern int default_bgcolor, default_fgcolor, fgcolor, bgcolor;
-extern ggi_visual_t vis;
+// extern ggi_visual_t vis;
 
 int min (int a, int b)
 {

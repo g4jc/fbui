@@ -1,5 +1,16 @@
 
-Moving and resizing of windows not supported yet.
+This is fbwm, which is a more conventional window manager.
 
-To exit -- killing all windows -- use Alt-Backspace.
+In its present incarnation, it doesn't implement 
+	- title bars
+	- window resize
+
+However it does support
+	- an icon bar
+	- clickability of icons to change key focus
+	- Alt-M based window moves.
+
+Keys:
+	Alt-M enters window move mode.
+	Alt-Backspace exits
 

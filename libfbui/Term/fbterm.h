@@ -93,7 +93,7 @@ pid_t forkpty(int *amaster, char *name, struct termios *termp, struct  winsize *
 
 
 /* FBUI */
-#include <ggi/ggi.h>
+// #include <ggi/ggi.h>
 
 #define fbtermError(...) { fprintf (stderr, "%s: ", __func__); fprintf (stderr, __VA_ARGS__); fprintf (stderr, "\n"); }
 

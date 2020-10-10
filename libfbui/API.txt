@@ -1,75 +1,96 @@
 
-The FBUI library
-Copyright (C) 2004 by Zachary Smith.
-_________________________________________________________________
++------------------------------------------------------------+
+| The FBUI library (libfbui)                                 |
+| Copyright (C) 2004-2005 by Zachary Smith, fbui@comcast.net |
++------------------------------------------------------------+
 
-Using the library is actually not necessary since any program
-can operate the FBUI ioctls itself. However the library
-is helpful in that it saves time and effort and provides some
-abstractions.
-
-Display struct
---------------
-With FBUI version 0.9 and above, each application can multiple
-windows. However you still must open the display by calling
-fbui_display_open(), which generates the Display struct. 
-Before exiting, you should call fbui_display_close().
-
-Window struct
--------------
-Each application can only many windows. There is a limit on the
-number of windows per virtual console however that in theory
-can be changed before compiling the kernel.
+Using FBUI library is actually not expressly necessary since 
+any program can operate the FBUI ioctls itself. However the 
+library is helpful in that it saves time and effort and provides 
+some abstractions. Plus it is small, plus it is broken up into
+parts, so that you don't have to use all of it.
 
 Queueing
 --------
-The FBUI library implements queueing of drawing commands since
-doing this makes more efficient use of the ioctl interface.
+The FBUI library implements per-window queueing of drawing commands 
+since doing this makes more efficient use of the ioctl interface.
 Therefore you periodically need to call fbui_flush to make
 drawing happen. However some commands cause a flush to occur
-anyway because they involve data that might change before the
-queue is flushed. For instance fbui_draw_string does this.
+automatically because they involve data that would change before 
+the queue is flushed. For instance fbui_draw_string and the
+put-image routines do this.
 
-Fonts
------
+Monochrome Fonts
+----------------
 FBUI does not cache font metrics or bitmaps in kernel space. 
 Therefore each application must load the fonts it needs into 
-its own memory. FBUI library does not yet cache font info
-nor does it allow any single process to act as a font server.
+its own memory. libfbui does not yet cache font info nor 
+does it allow any single process to act as a font server.
+Fonts currently supported are 1-bit per pixel Adobe fonts
+taken from X Windows (you must configure that, see the FONTS file).
 
-Using FBUI Library
+Anti-Aliased Fonts
 ------------------
-It is best to look at a sample application to get an idea of how
-to use FBUI library. However here is a quick overview.
+FBUI library doesn't currently support anti-aliased fonts
+themselves, however the addition of the two transparent put-image
+functions (fbui_put_image_rgb and fbui_put_image_grey), 
+it is only a matter of time before I add support for anti-aliased
+fonts. However, the goal with FBUI is to keep it and the library
+small. Consider this:
+	Freetype's .so file = 475 kB
+	Type 1 library .so file = 222 kB
+	TeX font reader = possibly much smaller.
 
-In main you want to:
+Using FBUI Library (libfbui)
+----------------------------
+It may be best to look at a sample application to get an idea of 
+how to use FBUI library. But it's really pretty simple. Here is 
+a quick overview.
 
-1. load any fonts, perhaps exit if unavailable
-2. call fbui_display_open to get the Display
-3. call fbui_window_open for any windows with desired arguments
-4. request any Alt-key accelerators if you need them; be sparing.
-5. event loop: break out of it when done
-6. optionally call fbui_window_close for each window
-7. call fbui_display_close (which also calls fbui_window_close)
-8. free up any Font objcts
+In main() you should:
+
+1. call fbui_display_open to get the Display object.
+	-> note, this establishes the dpi value, needed to load fonts.
+2. load any fonts to obtain Font objects, perhaps exit if unavailable.
+3. call fbui_window_open with desired arguments to get Window objects.
+4. request any Alt-key accelerators if you need them; be sparing,
+   because these are not per-application, they are global.
+5. enter your event loop: break out of it when done.
+6. optionally, call fbui_window_close for each Window.
+7. call fbui_display_close (which also calls fbui_window_close).
+8. free up any Font objects.
 
 In the event loop you must:
 
 1. either wait for events, or poll for events e.g. 2-10 times 
-   per second
+   per second.
 2. process events, e.g. mouse motion, keypresses, expose;
    the Event struct should have all the event data you need.
 
+Classes
+-------
+The important classes are:
+	Display 
+	Window 
+	Font
+	Event
+
 Expose
 ------
-In windowing systems that have overlapping windows,
-expose events are for parts of windows. In FBUI, Expose
-covers the entire window.
+Now that FBUI supports overlapping windows, its Expose
+event also passes an array of rectangles back to the
+application. This can be used, or ignored. Sometimes
+no rectangle list is provided, if FBUI deems that there
+are too many rectangles for an app to process quickly.
 
 fbui_display_open
 -----------------
-This routine produces the Display struct and opens
-the framebuffer.
+This routine produces the Display struct and opens the framebuffer.
+At the beginning of your program, you must open the display by 
+calling fbui_display_open(), which generates the Display struct. 
+Before exiting, you must call fbui_display_close(). If you
+ever use the FATAL error macro, it will call fbui_display_close 
+for you.
 
 fbui_window_open
 ----------------
@@ -77,12 +98,14 @@ This routine opens a single window for the process.
 You can specify a window location and size, but these can be 
 overridden using command line arguments.
 
-You can call fbui_open many times, but keep in mind
-there is an upper limit per VC on the number of windows.
+You can call fbui_window_open many times, but keep in mind
+there is presently an upper limit per VC on the number of windows,
+which is set in the kernel .config file.
 
-You can specify a program type, which is a hint to the
-window manager as to where the window should be placed.
-fbwm ignores this, but for fbpm it is vital.
+FBUI supports the idea of an application program type, which is 
+just a hint passed to the window manager, to tell it where the window 
+might want to be placed. fbwm ignores this hint, but for fbpm 
+it is vital.
 
 Another parameter is the desired virtual console. A value
 of -1 means the current one. Otherwise 0..5 are the consoles
@@ -90,12 +113,12 @@ available.
 
 Drawing
 -------
-Drawing is easy. As previously stated, commands are
+Drawing is easy. As explained above, commands are
 queued until a flush. You can draw lines, points, 
 rectangles, horizontal lines, vertical lines. You can 
 fill areas, clear the window. Later I will add
 arcs and maybe, just maybe, anti-aliased lines.
-You can also draw text if you're read in a font.
+You can also draw text if you have read in a font.
 
 Window Manager, Panel Manager
 -----------------------------
@@ -104,22 +127,26 @@ especially the Panel Manager fbpm which is the focus
 of my window manager development.
 
 The Panel Manager's purpose is to organize the user interface
-into standard functional areas and thereby make work with the 
-computer easier and quicker.
+into standard functional areas and thereby make working 
+with the computer easier and quicker.
 
 Program Type Hint
 -----------------
 If no window manager is yet running, this datum will be
 ignored. If there is a wm, the program type will result 
-in a window being hidden upon creation and its need_placement
-flag set. The window manager will get word of the window's 
-creation and resize/position it.
+in a window being hidden upon creation and its internal
+need_placement flag set. FBUI will tell the window manager
+of the window's creation and resize/position it.
 
 Errors
 ------
 If your program needs to exit rapidly, use the FATAL
 macro, which takes a string argument. This macro
 closes all windows and the display.
+
+Note! Presently, unexpected program exits will result 
+in the program's window(s) remaining up until the 
+user switches to a different virtual console.
 
 If you need to print an FBUI error code, call
 fbui_print_error.
@@ -131,7 +158,7 @@ libfbui and should result in all windows being closed.
 
 Zombie Windows
 --------------
-If by chance an FBUI program dies without its window(s)
+If by chance an FBUI application dies without its window(s)
 being closed, FBUI will eventually remove such windows
 automagically.
 

@@ -1,5 +1,5 @@
 /*
- * FBUI input event snagging
+ * FBUI input event acquirer
  * Code for relaying input events to FBUI.
  *
  * Modification for FBUI by Zachary Smith, copyright (C) 2004.
@@ -20,7 +20,7 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  *
  * Should you need to contact me, the author, you can do so either by
- * e-mail - mail your message to <fbui@comcast.net>.
+ * e-mail - mail your message to <plinius@comcast.net>.
  */
 
 #include <linux/slab.h>
@@ -33,8 +33,8 @@
 
 
 
-MODULE_AUTHOR("Zachary Smith <fbui@comcast.net>");
-MODULE_DESCRIPTION("Input-driver-event besnagger module");
+MODULE_AUTHOR("Zachary Smith <plinius@comcast.net>");
+MODULE_DESCRIPTION("Input-driver-event grabber module");
 MODULE_LICENSE("GPL");
 
 
@@ -111,9 +111,37 @@ static struct input_handler fbui_input_handler = {
 	.event =	fbui_input_event,
 	.connect =	fbui_input_connect,
 	.disconnect =	fbui_input_disconnect,
-	.name =		"fbui_input",
+	.name =		"FBUI input module",
 	.id_table =	fbui_input_ids,
 };
+
+
+void
+fbui_mksound (int pitch, int duration)
+{
+        struct list_head * node;
+
+	if (!handler)
+		return;
+
+        if (pitch) {
+                list_for_each_prev(node,&fbui_input_handler.h_list) {
+                        struct input_handle *handle = to_handle_h(node);
+                        if (test_bit(EV_SND, handle->dev->evbit)) {
+printk (KERN_INFO "fbui_mksound: found speaker device.\n");
+                                if (test_bit(SND_TONE, handle->dev->sndbit)) {
+                                        input_event(handle->dev, EV_SND, SND_TONE, pitch);
+                                        break;
+                                }
+                                if (test_bit(SND_BELL, handle->dev->sndbit)) {
+                                        input_event(handle->dev, EV_SND, SND_BELL, 1);
+                                        break;
+                                }
+                        }
+                }
+        }
+}
+
 
 int __init fbui_input_init(void)
 {

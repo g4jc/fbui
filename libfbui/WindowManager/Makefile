@@ -1,6 +1,6 @@
 
 EXE=fbwm
-SRC=	main.c jpeg.c rect.c
+SRC=	main.c 
 
 test:	${SRC}
 	gcc -lm -ljpeg -I.. -g ${SRC} ../libfbui.a -o ${EXE} 

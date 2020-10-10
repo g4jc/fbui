@@ -2,7 +2,7 @@
 /*=========================================================================
  *
  * fbscribble, a simple drawing program
- * Copyright (C) 2004 Zachary T Smith, fbui@comcast.net
+ * Copyright (C) 2004 Zachary Smith, fbui@comcast.net
  *
  * This module is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -119,7 +119,7 @@ void Canvas_draw (Canvas *canvas, Display* dpy, Window *win, int zoom)
 	if (zoom != 1)
 		return;
 
-	fbui_fill_area (dpy, win, 0,0, win->width-1, win->height-1, 0xB0B0B0);
+	fbui_fill_rect (dpy, win, 0,0, win->width-1, win->height-1, 0xB0B0B0);
 
 	int x,y;
 	int bytes_per_pixel = canvas->depth / 8;
@@ -285,6 +285,7 @@ main(int argc, char** argv)
 		true,  // need keys
 		false, // all motion
 		false, // not hidden
+		NULL,
 		argc, argv);
 
 	int x0 = (win->width - canvas->width) >> 1;
@@ -353,7 +354,7 @@ printf ("got button event, value=%d\n", ev.key);
 			break;
 		 }
 		
-		case FBUI_MOVE_RESIZE:
+		case FBUI_EVENT_MOVERESIZE:
 			x0 = (ev.width - canvas->width) >> 1;
 			y0 = (ev.height - canvas->height) >> 1;
 			break;

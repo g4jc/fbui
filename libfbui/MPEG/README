@@ -2,10 +2,13 @@
 Revised to support FBUI by Zack Smith
 Nov 20, 2004
 
+This program should be compiled with -O3.
+
 NOTE: 
 	This mpeg player is very slow.
-	It's really not a serious utility.
-	Someone should create a Xine frontend for FBUI.
+	This mpeg player does not support sound.
+	Someone should really create an FBUI frontend for Xine,
+		which is must faster anyway.
 
 Usage: 
    mpeg2decode -b file.mpeg 

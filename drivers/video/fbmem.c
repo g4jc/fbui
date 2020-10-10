@@ -6,7 +6,7 @@
  *	2001 - Documented with DocBook
  *	- Brad Douglas <brad@neruo.com>
  *      2004 - Updated for fbui
- *      - Zack T Smith <fbui@comcast.net>
+ *      - Zack T Smith <plinius@comcast.net>
  *
  * This file is subject to the terms and conditions of the GNU General Public
  * License.  See the file COPYING in the main directory of this archive
@@ -966,19 +966,34 @@ fb_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
 
 #ifdef CONFIG_FB_UI
 	case FBIO_UI_OPEN: {
-                if (access_ok (VERIFY_READ, (char*) arg, sizeof(struct fbui_openparams))) 
-			return fbui_open (info, (struct fbui_openparams*) arg);
-                else
+		if (!info->fbui)
+			return FBUI_ERR_NOT_OPERATIONAL;
+
+                if (access_ok (VERIFY_READ, (char*) arg, sizeof(struct fbui_open))) {
+			i = fbui_open (info, (struct fbui_open*) arg);
+			if (i < 0)
+				info->fbui_errno = i;
+			else
+				info->fbui_errno = 0;
+			return i;
+                } else
 			return -EFAULT;
 	}
 
 	case FBIO_UI_CLOSE:
+		if (!info->fbui)
+			return FBUI_ERR_NOT_OPERATIONAL;
+
 		return fbui_close (info, arg);
 
         case FBIO_UI_EXEC: {
                 short win_id=-1;
                 short nwords=0;
                 short *ptr=(short*) arg;
+
+		if (!info->fbui)
+			return FBUI_ERR_NOT_OPERATIONAL;
+
                 if (access_ok (VERIFY_READ, (char*) arg, 4)) {
                         if (get_user (win_id, ptr))
 				return -EFAULT;
@@ -988,9 +1003,12 @@ fb_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
                         if (get_user (nwords, ptr))
 				return -EFAULT;
 			arg += 4;
-			if (access_ok (VERIFY_READ, (char*) (arg), 2*nwords)) 
-				return fbui_exec (info, win_id, nwords, 
+			if (access_ok (VERIFY_READ, (char*) (arg), 2*nwords)) {
+				int i = fbui_exec (info, win_id, nwords, 
 					(unsigned char*) (arg));
+				info->fbui_errno = i;
+				return i;
+			}
 			else
 				return -EFAULT;
                 }
@@ -999,14 +1017,19 @@ fb_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
         }
 
 	case FBIO_UI_CONTROL:
-                if (access_ok (VERIFY_READ, (char*) arg, sizeof(struct fbui_ctrlparams)))
+		if (!info->fbui)
+			return FBUI_ERR_NOT_OPERATIONAL;
+
+                if (access_ok (VERIFY_READ, (char*) arg, sizeof(struct fbui_ctrl)))
 		{
-			struct fbui_ctrlparams ctl;
-			if (!copy_from_user (&ctl, (void*)arg, sizeof(struct fbui_ctrlparams))){
-				return fbui_control (info, &ctl);
-			} else {
-				return -EFAULT;
+			struct fbui_ctrl ctl;
+			if (!copy_from_user (&ctl, (void*)arg, sizeof(struct fbui_ctrl))) {
+				int i = fbui_control (info, &ctl);
+				info->fbui_errno = i;
+				return i;
 			}
+			else
+				return -EFAULT;
 		} else {
 			return -EFAULT;
 }

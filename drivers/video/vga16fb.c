@@ -8,6 +8,11 @@
  * This file is subject to the terms and conditions of the GNU General
  * Public License.  See the file COPYING in the main directory of this
  * archive for more details.  
+ *
+ *----------------------------------------------------------------------------
+ * Unfinished work covered by GPL providing additional functionality needed 
+ * for FramebufferUI, copyright (C) 2003-2005 by Zack Smith.
+ *----------------------------------------------------------------------------
  */
 
 #include <linux/module.h>
@@ -1311,38 +1316,283 @@ void vga16fb_imageblit(struct fb_info *info, const struct fb_image *image)
 }
 
 #ifdef CONFIG_FB_UI
-static void vga16fb_point (struct fb_info *info, short x, short y, u32 rgb)
+
+static struct semaphore fbuiSem;
+
+static char vga16_rgb_to_pixel (u32 rgb)
 {
+	u32 r,g,b;
+	char result = 0;
+
+	/* As a temporary solution, we will convert to a kind of 3-bit RGB value */
+
+	r = 0xff & (rgb >> 16);
+	g = 0xff & (rgb >> 8);
+	b = 0xff & rgb;
+
+	if (r >= 0xA0)
+		result |= 4;
+	if (g >= 0xA0)
+		result |= 2;
+	if (b >= 0xA0)
+		result |= 1;
+
+	return result;
 }
+
+static u32 vga16_pixel_to_rgb (char pixel)
+{
+	u32 rgb = 0;
+
+	if (pixel & 1)
+		rgb = 0xff;
+	if (pixel & 2)
+		rgb |= 0xff00;
+	if (pixel & 4)
+		rgb |= 0xff0000;
+
+	return pixel;
+}
+
+
+static void vga16fb_point (struct fb_info *info, short x, short y, u32 rgb, char invert)
+{
+        unsigned char *mem;
+        unsigned char k;
+	short xres, yres;
+	char color;
+
+	if (!info)
+		return;
+	if (invert) /* not supported yet */
+		return;
+	xres = info->var.xres;
+	yres = info->var.yres;
+	if (x < 0 || y < 0 || x >= xres || y >= yres)
+		return;
+	if (info->var.bits_per_pixel != 4)
+		return;
+	/*----------*/
+	
+        mem= info->screen_base;
+
+	color = vga16_rgb_to_pixel (rgb);
+
+	down (&fbuiSem);
+
+#define VGAGRAPH 0x3ce
+#define OUTGRAPH(BB) outw(BB, VGAGRAPH); 
+        OUTGRAPH ((color & 0xf) << 8);
+        OUTGRAPH (1);
+        OUTGRAPH (2);
+        OUTGRAPH (3);
+        OUTGRAPH (4);          /* bit plane 0 */
+	OUTGRAPH (0x0305);     /* read mode 0, write mode 3 */
+        OUTGRAPH (0x0006);     /* 128k window to video memory */
+        OUTGRAPH (7);          /* disable comparison */
+	OUTGRAPH (0xff08);
+
+        mem += y*80 + (x>>3);
+        k = *mem;
+        *mem = (1 << (7-(x & 7)));
+
+	up (&fbuiSem);
+}
+
+#if 0
 static void vga16fb_hline (struct fb_info *info, short x0, short x1, short y, u32 rgb)
 {
+        unsigned char *mem;
+        unsigned char k, mask;
+	short i, xres, yres;
+	char color;
+
+	if (!info)
+		return;
+	xres = info->var.xres;
+	yres = info->var.yres;
+	if (y < 0 || y >= yres)
+		return;
+	if (x0 < 0 && x1 < 0)
+		return;
+	if (x1 >= xres && x0 >= xres)
+		return;
+	if (x0 > x1) {
+		short tmp = x0;
+		x0 = x1;
+		x1 = tmp;
+	}
+	if (x0 < 0)
+		x0 = 0;
+	if (x1 >= xres)
+		x1 = xres-1;
+	if (info->var.bits_per_pixel != 4)
+		return;
+	/*----------*/
+	
+	if (x0 == x1) {
+		vga16fb_point (info, x0, y, rgb, 0);
+		return;
+	}
+
+	color = vga16_rgb_to_pixel (rgb);
+
+	down (&fbuiSem);
+
+	OUTGRAPH ((color & 0xf) << 8);
+	OUTGRAPH (1);
+	OUTGRAPH (2);
+	OUTGRAPH (3);
+	OUTGRAPH (4); /* Bit plane 0 */
+	OUTGRAPH (0x0305); /* Set read mode 0, write mode 3 */
+	OUTGRAPH (7); /* Disable comparison */
+	OUTGRAPH (0xff08);
+
+	mem = info->screen_base + 5 * y + (x0>>3);
+	i = x1 - x0 + 1;
+	mask = 1 << (7-(x0 & 7));
+
+	while (mask != 0x80 && i > 0) {
+		k = *mem;
+		*mem = mask;
+		mask >>= 1;
+		if (!mask) {
+			mem++;
+			mask = 0x80;
+		}
+		i--;
+	}
+	while (mask == 0x80 && i >= 32)
+	{
+		k = *mem; *mem = 0xff; mem++;
+		k = *mem; *mem = 0xff; mem++;
+		k = *mem; *mem = 0xff; mem++;
+		k = *mem; *mem = 0xff; mem++;
+		i -= 32;
+	}
+	while (mask == 0x80 && i >= 8)
+	{
+		k = *mem; *mem = 0xff; mem++;
+		i -= 8;
+	}
+	while (i > 0) {
+		k = *mem; 
+		*mem = mask;
+		mask >>= 1;
+		if (!mask) {
+			mem++;
+			mask = 0x80;
+		}
+		i--;
+	}
+	up (&fbuiSem);
 }
+#endif
+
+
 static void vga16fb_vline (struct fb_info *info, short x, short y0, short y1, u32 rgb)
 {
+	down (&fbuiSem);
+	up (&fbuiSem);
 }
 static u32 vga16fb_read_point (struct fb_info *info, short x, short y)
 {
+	unsigned char *mem, pixel=0, mask;
+	short xres, yres;
+
+	if (!info)
+		return RGB_NOCOLOR;
+	if (x < 0 || y < 0)
+		return RGB_NOCOLOR;
+	xres = info->var.xres;
+	yres = info->var.yres;
+	if (x >= xres || y >= yres)
+		return RGB_NOCOLOR;
+	if (info->var.bits_per_pixel != 4)
+		return RGB_NOCOLOR;
+	/*----------*/
+
+	mem= info->screen_base + y*80 + (x>>3);
+	mask = 1 << (7-(x & 7));
+
+	down (&fbuiSem);
+	OUTGRAPH (0);
+	OUTGRAPH (1);
+	OUTGRAPH (2);
+	OUTGRAPH (3);
+	OUTGRAPH (4);
+	OUTGRAPH (5); // Set read mode 0
+	OUTGRAPH (6); // 128k window to video memory
+	OUTGRAPH (7); // Disable comparison
+	OUTGRAPH (0xff08); 
+
+	OUTGRAPH (0x004);
+	if (*mem & mask)
+		pixel |= 8;
+
+	OUTGRAPH (0x104);
+	if (*mem & mask)
+		pixel |= 4;
+
+	OUTGRAPH (0x204);
+	if (*mem & mask)
+		pixel |= 2;
+
+	OUTGRAPH (0x304);
+	if (*mem & mask)
+		pixel |= 1;
+
+	up (&fbuiSem);
+	return vga16_pixel_to_rgb (pixel);
 }
-static u32 vga16fb_putpixels_native (struct fb_info *info, short x, short y,
+static void vga16fb_putpixels_native (struct fb_info *info, short x, short y,
         short n, unsigned char *src, char in_kernel)
 {
+	down (&fbuiSem);
+	up (&fbuiSem);
 }
 static u32 vga16fb_getpixels_rgb (struct fb_info *info, short x, short y,
+        short n, unsigned long *src, char in_kernel)
+{
+	down (&fbuiSem);
+	up (&fbuiSem);
+	return 0;
+}
+static void vga16fb_putpixels_rgb (struct fb_info *info, short x, short y,
+        short n, unsigned long *src, char in_kernel)
+{
+	down (&fbuiSem);
+	up (&fbuiSem);
+}
+static void vga16fb_putpixels_rgb3 (struct fb_info *info, short x, short y,
         short n, unsigned char *src, char in_kernel)
 {
+	down (&fbuiSem);
+	up (&fbuiSem);
 }
-static u32 vga16fb_putpixels_rgb (struct fb_info *info, short x, short y,
-        short n, unsigned char *src, char in_kernel)
-{
-}
-static u32 vga16fb_putpixels_rgb3 (struct fb_info *info, short x, short y,
-        short n, unsigned char *src, char in_kernel)
-{
-}
-static u32 vga16fb_copyarea2 (struct fb_info *info, short xsrc, short ysrc,
+static void vga16fb_copyarea2 (struct fb_info *info, short xsrc, short ysrc,
         short w, short h, short xdest, short ydest)
 {
+	down (&fbuiSem);
+	up (&fbuiSem);
 }
+
+#if 0
+static void vga16fb_clear (struct fb_info *info, u32 color)
+{
+	int i=0;
+	short xres, yres;
+
+	if (!info)
+		return;
+	/*----------*/
+
+	xres = info->var.xres;
+	yres = info->var.yres;
+	while (i < yres)
+		vga16fb_hline (info, 0, xres-1, i++, color);
+}
+#endif
 #endif
 
 static struct fb_ops vga16fb_ops = {
@@ -1361,10 +1611,9 @@ static struct fb_ops vga16fb_ops = {
 
 #ifdef CONFIG_FB_UI
         .fb_point       = vga16fb_point,
-        .fb_hline       = vga16fb_hline,
+        //.fb_hline       = vga16fb_hline,
         .fb_vline       = vga16fb_vline,
-        .fb_clear         = vga16fb_clear,
-        .fb_hline         = vga16fb_hline,
+        //.fb_clear         = vga16fb_clear,
         .fb_read_point    = vga16fb_read_point,
         .fb_putpixels_native    = vga16fb_putpixels_native,
         .fb_putpixels_rgb       = vga16fb_putpixels_rgb,
@@ -1401,6 +1650,10 @@ int __init vga16fb_init(void)
 	vga16fb_setup(option);
 #endif
 	printk(KERN_DEBUG "vga16fb: initializing\n");
+
+#ifdef CONFIG_FB_UI
+	init_MUTEX (&fbuiSem);
+#endif
 
 	/* XXX share VGA_FB_PHYS and I/O region with vgacon and others */
 

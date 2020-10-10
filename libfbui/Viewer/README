@@ -11,4 +11,5 @@ Key		Effect
 spacebar 	next image
 q 		quit
 g 		toggle grayscale
+r		rotate (color images only)
 

@@ -1,9 +1,9 @@
 
 EXE=fbview
-SRC=	main.c jpeg.c
+SRC=	main.c 
 
 ${EXE}:	${SRC}
-	gcc -Wall -lm -I.. -g ${SRC} ../libfbui.a -o ${EXE} -ljpeg -ltiff
+	gcc -Wall -lm -I.. -g ${SRC} ../libfbui.a ../libfbuiimage.a -o ${EXE} -ljpeg -ltiff
 	# strip ${EXE}
 
 clean:

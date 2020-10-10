@@ -1,0 +1,48 @@
+Script started on Fri 30 Sep 2005 11:13:29 AM EDT
+root@paradise:/usr/src/linux-2.6.9/libfbui/Benchmark# ./fbmark b 
+Framebuffer resolution: 800x600, 16bpp
+opaque lines
+	-> rate    10442.25/sec
+opaque hlines
+	-> rate   108119.75/sec
+opaque text
+	-> rate     1101/sec
+random opaque rectangles
+	-> rate    10315.50/sec
+filled transparent rectangles
+	-> pixels per second =   877500.00/sec
+filled opaque rectangles
+	-> pixels per second = 44752500.00/sec
+fullscreen filled rectangles
+	-> pixels per second = 48208875.00/sec
+opaque points
+	-> rate   242806.20/sec
+256x16 put-rgb3 operations
+	-> pixels per second =  6650880.00/sec
+256x16 put-rgb opaque operations
+	-> pixels per second = 11896012.80/sec
+copyareas upward
+	-> rate        9.72/sec
+copyareas downard
+	-> rate        9.72/sec
+copyareas rightward
+	-> rate        9.72/sec
+copyareas leftward
+	-> rate        9.72/sec
+640x480 rgb4 put image
+	-> rate       30.70/sec
+640x480 rgb4 fillrect 
+	-> rate      146.85/sec
+640x480 rgb3 put image
+	-> rate       19.65/sec
+640x480 rgb2 put image
+	-> rate      106.80/sec
+640x480 grey put image
+	-> rate       67.85/sec
+640x480 mono image writes per second
+	-> rate   	197/sec
+The entire test took 1652 seconds to complete.
+root@paradise:/usr/src/linux-2.6.9/libfbui/Benchmark# exit
+exit
+
+Script done on Fri 30 Sep 2005 11:41:25 AM EDT

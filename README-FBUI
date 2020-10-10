@@ -1,0 +1,118 @@
+
+Greetings,
+
+This is FBUI (FrameBufferUI), which implements an in-kernel 
+windowing system that offers basic functionality within a tiny space.
+
+Pronunciation: ef-boo-ie
+
+I've included FBUI Library (libfbui), which exists to make using FBUI's 
+ioctls simpler, although it is optional.
+
+Why in-kernel? A number of reasons.
+
+1. To put a limit on GUI bloat and application bloat.
+   This is the essential philosophical foundation 
+   of the project.
+
+2. To provide to users of older computers, tiny computers, 
+   embedded systems et cetera a GUI that is small and fast,
+   thereby hopefully saving some older computers from
+   being disposed of unnecessarily.
+
+3. To put the windowing system, which is essentially
+   a driver, in the kernel with all the other drivers.
+   It does not belong in userspace.
+
+4. To allow for instant program start-up, rather than 
+   the slow, laborsome startup of X. Instantaneous start-up
+   of graphical applications has not been seen on PCs since 
+   the days of MSDOS.
+
+5. To allow graphical applications to exist on every 
+   virtual console, which is useful and novel, and 
+   to permit then to co-exist with text-based programs.
+
+FBUI is not intended to satisfy all users' needs.
+For instance, it doesn't yet support using remote applications
+as X does. However what it provides in its small space
+is a demonstration of the possiblities of programming
+as an art and craft, as opposed to rushed assembly-line 
+programming that you see in deadline-obsessed companies.
+
+For those of us who accept FBUI's limitations and requirements, 
+and see virtue in its simplicity and lack of bloat, 
+it may prove very useful.
+
+Zack Smith
+fbui@comcast.net
+
+=====================================================
+
+Installation Instructions
+
+0.
+Get kernel 2.6.9 from ftp.kernel.org. Then uncompress &
+detar it in /usr/src as the directory linux-2.6.9.
+Create a symlink thus: 
+	ln -s /usr/src/linux-2.6.9 /usr/src/linux
+
+1.
+Create a symlink for the new kernel's include files thus:
+	cd /usr/include
+	mv linux linux-old
+	ln -s /usr/src/linux/include/linux linux
+
+2. 
+Then chdir to your /usr/src/linux-2.6.9 directory
+and do a "make menuconfig", which will let you choose
+the FBUI features. A sample .config file is included
+to let you skip this step.
+
+3. 
+Make the kernel and install it however you normally do,
+updating your loader to let you load it. From my 
+/etc/lilo.conf:
+	image = /bzImage
+	  vga = 792
+	  root = /dev/hda4
+	  label = Test
+	  read-only
+
+Note the VGA modes:
+	791 = 1024x768, 16 bpp
+	792 = 1024x768, 32 or 24 bpp
+	788 = 800x600, 16 bpp
+	789 = 800x600, 32 or 24 bpp
+
+4. 
+To make the sample programs, cd to 
+	/usr/src/linux-2.6.9/libfbui
+and type "make all". It should run without problems
+on any modern Linux distro. Of course I always suggest 
+that people use Slackware.
+
+5. 
+Most of the test programs use PCF fonts, which should be
+included with X Windows. However libfbui currently
+doesn't uncompress them on the fly, so you must cd to 
+the font directory and uncompress them, e.g.
+	cd /usr/X11R6/lib/X11/fonts/75dpi
+	gunzip *.gz
+If that's not the font directory on your system, just
+locate it thus:
+	find / -name 75dpi
+And in your /etc/profile set this environment variable:
+	export PCFFONTDIR=(your font dir)
+
+6.
+To run a script that gets most of the non-testing 
+programs running, type
+	./start.sh 
+
+To run the same programs on the 5th console, type
+	./start.sh 4
+and then type Alt-F5 to view them.
+
+-end-
+

@@ -1,0 +1,40 @@
+
+New features in FBUI 0.11.0:
+
+* overlapping windows, window move/resize/raise/lower/hide/unhide.
+
+* mouse pointer has a shadow.
+
+* per-window icons, which are 24x32 RGB.
+
+* fbui_put_image_* functions for opaque and transparent images.
+	Modes:
+		1bpp (0 = transparent)
+		8bpp greyscale opaque
+		16bpp RGB opaque
+		24bpp RGB opaque
+		32bpp RGB opaque
+		32bpp RGBA transparent
+
+* transparent drawing functionality when foreground has
+	an alpha-channel that is not 0, in:
+		draw-point, line, hline, vline, fillrect.
+
+* semi-separation of library into components:
+	libfbui = main functions
+	libfbuiimage = image-manipulation
+	libfbuifont = PCF font functions
+	libfbuidialog = simple dialog function
+
+* window manager now receives mouse events for the background.
+
+* fbwm window manager improvements:
+	- clickable icon list for setting keyboard focus
+	- Alt-M to move a window
+
+* fbterm improvements:
+	- image buffering for faster expose.
+
+* fbview improvements:
+	- updated for libfbuiimage.
+

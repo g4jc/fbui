@@ -1,0 +1,90 @@
+
+IMMEDIATE WORK
+--------------
+
+Version 0.11 of FBUI has some minor issues that I am
+still working on, namely 
+	- a bug in the removal of windows
+	- a need to improve window move performance
+
+FUTURE WORK
+-----------
+
+What sorts of ideas am I planning for FBUI and libfbui? 
+Where is my list of features to add?
+
+The fact that FBUI and libfbui are so small means that 
+some features can yet be added very inexpensively.
+The question is to which provide the most for the least
+cost in code size and memory usage.
+
+Personally I think FBUI is now very close to its maximum size,
+but libfbui could use some work.
+
+Here is my list of features I am contemplating
+the addition of.
+
+0. FBUI: "active" areas in windows to permit the wm to move/resize/etc.
+
+1. FBUI: per-window settable mouse pointer and the ability to disable
+   the mouse pointer.
+
+2. libfbui: widgets... FLTK2?
+
+3. libfbui: support for anti-aliased fonts, preferably
+   very cheap ones like those available in TeX.
+	Note:
+		Freetype's .a is 470 kB
+		T1lib's .a is 222 kB
+	Whereas:
+		My PCF font support is 29 kB
+		A TeX font reader would be similarly small.
+
+	-> NOTE, AA fonts are the most-asked-for feature.
+
+4. FBUI driver: VGA (4bpp) support for use on pre-VESA systems.
+
+5. FBUI: vertical blanking events?
+
+6. FBUI: support for partially off-screen windows.
+
+7. apps: proper Launch menu.
+
+8. apps: fbwm support for resizing windows (moving is via Alt-M).
+
+9. FBUI: add ability of wm to send "menu" commands to apps, 
+   in case the wm is used as a menu system.
+
+10. FBUI: integrated sound playing?
+
+11. FBUI: move filled-triangle routine to libfbui.
+
+12. libfbui: Unicode
+
+Other:
+
+*. fbcon: use of FBUI's putimage routines to implement
+           an anti-aliased console font.
+
+---------------------
+
+Applications still needed:
+
+* FBUI version of xine frontend.
+
+* pdf viewer
+
+* basic document editor a la simpletext or wordpad.
+ 
+* web browser... Dillo or links based.
+
+* email reader/composer
+
+---------------------
+
+Older list
+
+* fbpm: implement support for Ephemeral apps
+
+* implement 16-bit fonts? add support for Unicode
+

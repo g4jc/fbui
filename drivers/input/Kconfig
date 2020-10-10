@@ -135,7 +135,7 @@ config INPUT_EVBUG
 	  module will be called evbug.
 
 config INPUT_FBUI
-        tristate "FBUI input handling"
+        tristate "FBUI mouse & keyboard event handler"
         default y
         depends on INPUT
         ---help---

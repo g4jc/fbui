@@ -2,7 +2,7 @@
 /*=========================================================================
  *
  * fbtodo, a "To Do List" for FBUI (in-kernel framebuffer UI)
- * Copyright (C) 2004 Zachary T Smith, fbui@comcast.net
+ * Copyright (C) 2004 Zachary Smith, fbui@comcast.net
  *
  * This module is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -39,6 +39,8 @@
 
 
 #include "libfbui.h"
+#include "libfbuifont.h"
+
 
 
 Font *titlefont, *listfont;
@@ -157,10 +159,10 @@ main(int argc, char** argv)
 		WARNING ("can't open ~/.todo; creating...");
 		f = fopen (path, "w");
 		fprintf (f, "4\n");
-		fprintf (f, "Get lunch\n");
-		fprintf (f, "GregPalast.org\n");
-		fprintf (f, "VoteCobb.org\n");
-		fprintf (f, "VotersUnite.org\n");
+		fprintf (f, "visit CorpWatch.org\n");
+		fprintf (f, "visit GregPalast.com\n");
+		fprintf (f, "visit ElectionFraud2004.org\n");
+		fprintf (f, "visit BlackBoxVoting.org\n");
 		fclose (f);
 	}
 
@@ -172,8 +174,12 @@ main(int argc, char** argv)
 	if (!readfile (path))
 		FATAL ("error reading ~/.todo");
 
-        titlefont = font_new ();
-        listfont = font_new ();
+	dpy = fbui_display_open ();
+	if (!dpy)
+		FATAL("cannot open display");
+
+        titlefont = Font_new ();
+        listfont = Font_new ();
 	if (!titlefont || !listfont)
 		FATAL ("cannot allocate Font");
 
@@ -183,7 +189,7 @@ main(int argc, char** argv)
 		FATAL ("cannot read Times 12 point");
 
 	short indent,a,d;
-	font_string_dims (listfont, "88. ", &indent, &a, &d);
+	Font_string_dims (listfont, "18. ", &indent, &a, &d);
 
 	listfontheight = listfont->ascent + listfont->descent;
 	titlefontheight = titlefont->ascent + titlefont->descent;
@@ -195,10 +201,6 @@ main(int argc, char** argv)
 	unsigned long sepcolor = RGB_WHITE;
 	unsigned long listhighlightcolor = RGB_LTBROWN;
 
-	dpy = fbui_display_open ();
-	if (!dpy)
-		FATAL("cannot open display");
-
 	w = 150;
 	h = 150;
 	win = fbui_window_open (dpy, w,h, &w, &h, 9999,9999, 0, -1, 
@@ -207,6 +209,7 @@ main(int argc, char** argv)
 		"fbtodo", "", 
 		FBUI_PROGTYPE_TOOL, false,false, -1, 
 		false, false,false, 
+		NULL, /* no mask */
 		argc,argv);
 	if (!win) 
 		FATAL ("cannot create window");
@@ -268,7 +271,7 @@ main(int argc, char** argv)
 				needdraw=1;
 			}
 			break;
-		case FBUI_EVENT_MOVE_RESIZE:
+		case FBUI_EVENT_MOVERESIZE:
 			w = ev.width;
 			h = ev.height;
 			break;
@@ -283,21 +286,19 @@ main(int argc, char** argv)
 				total_items > 1 ? "s" : "");
 
 			short wid,a,d;
-			font_string_dims (titlefont, title, &wid,&a,&d);
+			Font_string_dims (titlefont, title, &wid,&a,&d);
 			short title_pos = (w - wid) / 2;
 
-			fbui_fill_area (dpy, win, 0, 0, w-1, titlefontheight, titlecolor);
+			fbui_fill_rect (dpy, win, 0, 0, w-1, titlefontheight, titlecolor);
 			fbui_draw_hline (dpy, win, 0, w-1, titlefontheight, sepcolor);
 			fbui_draw_string (dpy, win, titlefont, title_pos, 0, 
 				title, titlefontcolor);
 		}
 
-		fbui_fill_area (dpy, win, 0, titlefontheight+1, w-1, h, listcolor);
+		fbui_fill_rect (dpy, win, 0, titlefontheight+1, w-1, h, listcolor);
 
-#if 0
 		fbui_draw_line (dpy, win, w-10, 2, w-3, 9, RGB_WHITE);
 		fbui_draw_line (dpy, win, w-10, 9, w-3, 2, RGB_WHITE);
-#endif
 
 		struct item *im = items;
 		int ix=0;
@@ -308,7 +309,7 @@ main(int argc, char** argv)
 			short y = titlefontheight+1+ix*listfontheight;
 
 			if (ix == highlight_which) 
-				fbui_fill_area (dpy, win, 0, y, w, y + listfontheight,
+				fbui_fill_rect (dpy, win, 0, y, w, y + listfontheight,
 					listhighlightcolor);
 
 			fbui_draw_string (dpy, win, listfont, 
